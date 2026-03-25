@@ -1,0 +1,49 @@
+
+{
+  "entities": {
+    "Account": {
+      "title": "Account",
+      "description": "A bank account extracted from a statement or manually created.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "openingBalance": { "type": "number" },
+        "closingBalance": { "type": "number" },
+        "currency": { "type": "string" },
+        "statementPeriod": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "openingBalance", "closingBalance"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A single financial transaction linked to an account.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["debit", "credit"] },
+        "category": { "type": "string" },
+        "subCategory": { "type": "string" }
+      },
+      "required": ["accountId", "date", "description", "amount", "type"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "Stored bank accounts with balance information."
+    },
+    "/accounts/{accountId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transactions associated with a specific account."
+    }
+  }
+}
