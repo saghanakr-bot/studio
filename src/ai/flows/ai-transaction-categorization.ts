@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview An AI agent for categorizing bank statement transactions and extracting statement summaries from PDFs or Images.
@@ -22,21 +21,24 @@ export type AICategorizationInput = z.infer<typeof AICategorizationInputSchema>;
 
 const CategorizedTransactionOutputSchema = z.object({
   date: z.string().describe('The date of the transaction in YYYY-MM-DD format.'),
-  description: z.string().describe('A detailed description of the transaction.'),
-  amount: z.number().describe('The amount of the transaction. Positive for income, negative for expense.'),
-  type: z.enum(['debit', 'credit']).describe('The type of transaction (debit or credit).'),
-  transactionId: z.string().optional().describe('Unique identifier for the transaction if available.'),
-  category: z.string().describe('The categorized spending category (e.g., "Groceries", "Utilities", "Rent", "Salary", "Software Subscription", "Office Supplies", "Travel", "Dining", "Loan Payment", "Sales Revenue", "Service Fees").'),
+  description: z.string().describe('A detailed description of the transaction, cleaned of OCR noise.'),
+  amount: z.number().describe('The absolute numerical value of the transaction.'),
+  type: z.enum(['debit', 'credit']).describe('The direction of the transaction: "credit" for income/deposits, "debit" for expenses/withdrawals.'),
+  transactionId: z.string().optional().describe('Unique reference number or ID if found in the statement.'),
+  category: z.string().describe('The business spending category (e.g., "Software", "Rent", "Revenue", "Utilities").'),
   subCategory: z.string().optional().describe('A more specific sub-category if applicable.'),
 });
 
 const AICategorizationOutputSchema = z.object({
-  categorizedTransactions: z.array(CategorizedTransactionOutputSchema).describe('A list of bank statement transactions extracted from the document.'),
+  categorizedTransactions: z.array(CategorizedTransactionOutputSchema).describe('A list of all individual transactions found.'),
   summary: z.object({
-    closingBalance: z.number().describe('The ending balance found on the statement footer.'),
-    statementPeriod: z.string().optional().describe('The date range of the statement.'),
-    currency: z.string().default('INR').describe('The currency detected in the statement.'),
-  }).describe('Financial summary extracted from the statement.'),
+    openingBalance: z.number().describe('The starting balance of the period.'),
+    closingBalance: z.number().describe('The final ending balance shown on the statement.'),
+    totalCredits: z.number().describe('Sum of all incoming funds identified.'),
+    totalDebits: z.number().describe('Sum of all outgoing funds identified.'),
+    statementPeriod: z.string().optional().describe('The date range covered by the statement (e.g., "Oct 2023" or "2023-01-01 to 2023-01-31").'),
+    currency: z.string().default('INR').describe('The 3-letter currency code detected.'),
+  }).describe('The high-level financial summary extracted from the document.'),
 });
 export type AICategorizationOutput = z.infer<typeof AICategorizationOutputSchema>;
 
@@ -49,27 +51,26 @@ const categorizeTransactionsPrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash',
   input: { schema: AICategorizationInputSchema },
   output: { schema: AICategorizationOutputSchema },
-  prompt: `You are an expert financial assistant specialized in analyzing business bank statements.
-You will be provided with a bank statement in PDF or Image format.
+  prompt: `You are a professional financial auditor. Your task is to analyze the provided bank statement (image or PDF) and extract all financial data with 100% accuracy.
 
-Your tasks:
-1. Extract ALL transactions listed in the document.
-2. Categorize each transaction into an appropriate business spending or income category.
-3. Extract the statement's Closing Balance.
-4. Identify the statement period and currency.
+1. **Transaction Extraction**:
+   - Extract EVERY transaction listed in the table. 
+   - Clean the 'description' to remove reference numbers or gibberish OCR characters, leaving only the vendor name or transaction purpose.
+   - Use YYYY-MM-DD format for dates.
+   - Determine 'type' carefully: Credits increase the balance, Debits decrease it.
 
-Common business categories include:
-- **Income**: Sales Revenue, Service Fees, Loan Disbursement, Interest Income
-- **Operating Expenses**: Rent, Utilities, Salaries & Wages, Office Supplies, Software Subscriptions, Marketing, Advertising, Travel, Business Meals
-- **Asset Purchases**: Equipment, Vehicles
-- **Debt Payments**: Loan Principal, Interest Expense
-- **Owner's Equity**: Owner's Draw
-- **Taxes**: Payroll Tax, Income Tax
+2. **Categorization Logic**:
+   - Categorize each transaction into standard business categories: Sales Revenue, Rent, Utilities, Salaries, Software, Marketing, Travel, Office Supplies, Tax, or Loan Payment.
 
-Statement File:
+3. **Summary Verification**:
+   - Find the 'Opening Balance' (often labeled as "Balance B/F" or "Previous Balance").
+   - Find the 'Closing Balance' (the final number in the balance column or a footer summary).
+   - Identify the Currency (e.g., INR, USD).
+
+Document Content:
 {{media url=statementDataUri}}
 
-Please return a JSON object matching the structure of AICategorizationOutputSchema. Extract dates accurately in YYYY-MM-DD format.`,
+Return the data strictly as JSON matching the AICategorizationOutputSchema. If a value is unclear, provide your best professional estimate based on the surrounding context.`,
 });
 
 const categorizeTransactionsFlow = ai.defineFlow(

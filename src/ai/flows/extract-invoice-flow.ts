@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview An AI agent for extracting data from single invoices or bills.
@@ -17,17 +16,18 @@ const ExtractInvoiceInputSchema = z.object({
     .describe(
       "A photo or PDF of an invoice or bill, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  type: z.enum(['income', 'bill']).describe('Whether this is an income invoice or an expense bill.'),
+  type: z.enum(['income', 'bill']).describe('Whether this is an income invoice (money coming in) or an expense bill (money going out).'),
 });
 export type ExtractInvoiceInput = z.infer<typeof ExtractInvoiceInputSchema>;
 
 const ExtractInvoiceOutputSchema = z.object({
-  date: z.string().describe('The date on the document in YYYY-MM-DD format.'),
-  description: z.string().describe('A brief description of what was purchased or sold.'),
-  vendor: z.string().describe('The name of the vendor or customer.'),
-  amount: z.number().describe('The total amount of the invoice/bill.'),
-  category: z.string().describe('A suggested business category (e.g., "Software", "Consulting", "Rent").'),
-  currency: z.string().default('INR').describe('The currency detected.'),
+  date: z.string().describe('The issue date on the document in YYYY-MM-DD format.'),
+  description: z.string().describe('A concise summary of the items or services listed.'),
+  vendor: z.string().describe('The name of the company or individual who issued the document.'),
+  amount: z.number().describe('The final total amount due, including taxes.'),
+  category: z.string().describe('A suggested business category for bookkeeping.'),
+  currency: z.string().default('INR').describe('The 3-letter currency code detected.'),
+  taxAmount: z.number().optional().describe('The total tax amount identified (GST, VAT, etc.).'),
 });
 export type ExtractInvoiceOutput = z.infer<typeof ExtractInvoiceOutputSchema>;
 
@@ -40,13 +40,18 @@ const extractInvoicePrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash',
   input: { schema: ExtractInvoiceInputSchema },
   output: { schema: ExtractInvoiceOutputSchema },
-  prompt: `You are a financial data entry specialist. 
-Extract the key details from the provided document. It is a business {{type}}.
+  prompt: `You are an expert bookkeeping assistant. Extract precise financial data from this {{type}} document.
 
-Document File:
+- **Vendor**: Identify the legal name of the entity that issued this document. Look at the header.
+- **Total Amount**: Find the 'Grand Total' or 'Total Due'. Ignore sub-totals unless the grand total is missing.
+- **Date**: Extract the primary invoice or billing date. Format as YYYY-MM-DD.
+- **Description**: Summarize the purpose of the invoice (e.g., "Cloud hosting services", "Consulting fee").
+- **Category**: Assign a logical business category (e.g., "Software", "Marketing", "Professional Services").
+
+Document Content:
 {{media url=invoiceDataUri}}
 
-Please return a JSON object with the date (YYYY-MM-DD), description, vendor name, total amount, and a suitable category. Be precise with the amount and date.`,
+Return the result as a JSON object matching ExtractInvoiceOutputSchema. Be extremely careful with the numerical 'amount'.`,
 });
 
 const extractInvoiceFlow = ai.defineFlow(
