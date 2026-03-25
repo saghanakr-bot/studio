@@ -24,6 +24,7 @@
         "id": { "type": "string" },
         "accountId": { "type": "string" },
         "date": { "type": "string", "format": "date" },
+        "dueDate": { "type": "string", "format": "date" },
         "description": { "type": "string" },
         "amount": { "type": "number" },
         "type": { "type": "string", "enum": ["debit", "credit"] },
@@ -31,7 +32,14 @@
         "subCategory": { "type": "string" },
         "status": { "type": "string", "enum": ["cleared", "pending"] },
         "priority": { "type": "string", "enum": ["high", "medium", "low"] },
-        "flexibility": { "type": "string", "enum": ["flexible", "fixed", "friendly"] }
+        "relationshipType": { "type": "string", "enum": ["Strict", "Moderate", "Flexible", "Friendly"] },
+        "contactInfo": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string" },
+            "phone": { "type": "string" }
+          }
+        }
       },
       "required": ["accountId", "date", "description", "amount", "type", "status"]
     }

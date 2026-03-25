@@ -7,9 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Upload, 
-  FileText, 
   CheckCircle2, 
   Loader2, 
   Sparkles, 
@@ -18,7 +18,9 @@ import {
   Calendar,
   Building2,
   Tag,
-  Clock
+  Clock,
+  Mail,
+  Phone
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { extractInvoice, ExtractInvoiceOutput } from "@/ai/flows/extract-invoice-flow";
@@ -37,6 +39,11 @@ function ScanContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [result, setResult] = useState<ExtractInvoiceOutput | null>(null);
+  const [relationshipType, setRelationshipType] = useState<string>("Moderate");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  
   const { toast } = useToast();
   const db = useFirestore();
 
@@ -63,6 +70,7 @@ function ScanContent() {
       const dataUri = await fileToDataUri(file);
       const response = await extractInvoice({ invoiceDataUri: dataUri, type });
       setResult(response);
+      setDueDate(response.date); // Default due date to invoice date, user can refine
       toast({
         title: "Extraction Complete",
         description: `Identified ${type} of ₹${response.amount.toLocaleString()}.`,
@@ -83,13 +91,11 @@ function ScanContent() {
     setIsSyncing(true);
 
     try {
-      // 1. Find the primary account or create one
       const accountsRef = collection(db, "accounts");
       const accountsQuery = query(accountsRef, orderBy("lastUpdated", "desc"), limit(1));
       const accountsSnapshot = await getDocs(accountsQuery);
       
       let accountId = "";
-      
       if (!accountsSnapshot.empty) {
         accountId = accountsSnapshot.docs[0].id;
       } else {
@@ -104,20 +110,20 @@ function ScanContent() {
         });
       }
 
-      // 2. Calculate amount
       const txAmount = type === "income" ? result.amount : -result.amount;
-
-      // 3. Create the transaction as PENDING
-      // We do NOT update the account balance here per user request
       const txRef = doc(collection(db, "accounts", accountId, "transactions"));
+      
       const txData = {
         date: result.date,
+        dueDate: dueDate || result.date,
         description: `${result.vendor}: ${result.description}`,
         amount: txAmount,
         type: type === "income" ? "credit" : "debit",
         category: result.category,
         accountId: accountId,
         status: "pending",
+        relationshipType,
+        contactInfo: { email, phone },
         createdAt: new Date().toISOString()
       };
 
@@ -131,7 +137,7 @@ function ScanContent() {
 
       toast({
         title: "Saved as Pending",
-        description: `Entry added. Mark as 'Cleared' on the dashboard to update balance.`,
+        description: `Entry added to your obligation tracker.`,
       });
 
       router.push("/");
@@ -157,7 +163,7 @@ function ScanContent() {
         </div>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary capitalize">Scan {type}</h1>
-          <p className="text-muted-foreground">Upload an invoice or bill. It will be stored as pending until cleared.</p>
+          <p className="text-muted-foreground">Store as pending to track and prioritize your cash flow.</p>
         </div>
       </div>
 
@@ -180,9 +186,7 @@ function ScanContent() {
               </Label>
               <Input id="file-upload" type="file" className="hidden" onChange={handleFileChange} accept="application/pdf,image/*" />
             </div>
-            {file && (
-              <div className="mt-4 text-sm font-medium text-muted-foreground">{file.name}</div>
-            )}
+            {file && <div className="mt-4 text-sm font-medium text-muted-foreground">{file.name}</div>}
           </div>
 
           <Button className="w-full h-12 text-lg gap-2" disabled={!file || isProcessing} onClick={processFile}>
@@ -197,34 +201,50 @@ function ScanContent() {
             <CardTitle className="flex items-center gap-2"><CheckCircle2 className="text-emerald-500 h-5 w-5" /> Extracted Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Building2 size={12} /> Vendor/Client</p>
-                <p className="font-semibold">{result.vendor}</p>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Building2 size={14} /> Vendor/Client</Label>
+                <Input value={result.vendor} disabled className="bg-muted/50" />
               </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Calendar size={12} /> Date</p>
-                <p className="font-semibold">{result.date}</p>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Calendar size={14} /> Due Date</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><TrendingUp size={12} /> Amount</p>
-                <p className={cn("text-xl font-bold", type === 'income' ? "text-emerald-600" : "text-rose-600")}>
-                  ₹{result.amount.toLocaleString()}
-                </p>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-rose-600 font-bold"><TrendingDown size={14} /> Amount</Label>
+                <Input value={`₹${result.amount.toLocaleString()}`} disabled className="bg-muted/50 font-bold" />
               </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Tag size={12} /> Category</p>
-                <p className="font-semibold">{result.category}</p>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Tag size={14} /> Relationship</Label>
+                <Select value={relationshipType} onValueChange={setRelationshipType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Strict">Strict (No delay)</SelectItem>
+                    <SelectItem value="Moderate">Moderate (Small delay)</SelectItem>
+                    <SelectItem value="Flexible">Flexible (Negotiable)</SelectItem>
+                    <SelectItem value="Friendly">Friendly (Partial ok)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Mail size={14} /> Contact Email</Label>
+                <Input type="email" placeholder="supplier@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Phone size={14} /> WhatsApp Number</Label>
+                <Input placeholder="+919988..." value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
             </div>
             
             <div className="pt-4 border-t flex flex-col gap-3">
               <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg text-xs">
                 <Clock size={16} className="shrink-0 mt-0.5" />
-                <p>This will be saved as a <strong>Pending Transaction</strong>. It will not affect your balance until you mark it as cleared on the dashboard.</p>
+                <p>This will be saved as <strong>Pending</strong>. It won't affect balance until cleared, but will be used for smart prioritization.</p>
               </div>
               <Button className="w-full bg-primary h-12" disabled={isSyncing} onClick={syncToDashboard}>
-                {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Save Pending ${type === 'income' ? 'Income' : 'Bill'}`}
+                {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Confirm & Track ${type === 'income' ? 'Income' : 'Bill'}`}
               </Button>
             </div>
           </CardContent>

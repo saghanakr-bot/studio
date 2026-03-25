@@ -1,7 +1,9 @@
 
 export type Transaction = {
   id: string;
+  accountId: string;
   date: string;
+  dueDate?: string;
   description: string;
   amount: number;
   type: 'debit' | 'credit';
@@ -9,7 +11,11 @@ export type Transaction = {
   subCategory?: string;
   status: 'cleared' | 'pending';
   priority?: 'high' | 'medium' | 'low';
-  flexibility?: 'flexible' | 'fixed' | 'friendly';
+  relationshipType?: 'Strict' | 'Moderate' | 'Flexible' | 'Friendly';
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+  };
 };
 
 export type PaymentReminder = {
