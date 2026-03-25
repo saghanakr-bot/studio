@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "Financial dashboard overview",
+      "imageUrl": "https://picsum.photos/seed/payplanr-1/1200/800",
+      "imageHint": "finance dashboard"
+    },
+    {
+      "id": "avatar-user",
+      "description": "User profile avatar",
+      "imageUrl": "https://picsum.photos/seed/payplanr-user/100/100",
+      "imageHint": "business person"
+    }
+  ]
+}
