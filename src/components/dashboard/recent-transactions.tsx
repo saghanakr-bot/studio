@@ -36,7 +36,17 @@ export function RecentTransactions() {
   const { data: transactions, loading, error } = useCollection(transactionsQuery);
 
   const handleClearTransaction = (transaction: any) => {
-    if (!db || clearingId || !transaction.accountId) return;
+    if (!db || clearingId || !transaction.accountId) {
+      if (!transaction.accountId) {
+        toast({
+          variant: "destructive",
+          title: "Missing Account Info",
+          description: "Cannot clear transaction: Associated account reference not found.",
+        });
+      }
+      return;
+    }
+    
     setClearingId(transaction.id);
 
     const accountRef = doc(db, "accounts", transaction.accountId);
@@ -49,15 +59,18 @@ export function RecentTransactions() {
         throw new Error("Target account does not exist.");
       }
 
-      const currentBalance = accountDoc.data().closingBalance || 0;
-      const amount = transaction.amount || 0;
+      // Ensure we are working with numbers to prevent string concatenation
+      const currentBalance = Number(accountDoc.data().closingBalance || 0);
+      const amount = Number(transaction.amount || 0);
       const newBalance = currentBalance + amount;
 
+      // Update the transaction status
       txn.update(txRef, { 
         status: "cleared", 
         clearedAt: new Date().toISOString() 
       });
       
+      // Update the account balance
       txn.update(accountRef, { 
         closingBalance: newBalance,
         lastUpdated: new Date().toISOString()
@@ -68,15 +81,22 @@ export function RecentTransactions() {
     .then((newBalance) => {
       toast({
         title: "Transaction Cleared",
-        description: `Account balance updated to ₹${newBalance.toLocaleString()}.`,
+        description: `Status updated and account balance adjusted to ₹${newBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`,
       });
     })
     .catch(async (err: any) => {
+      console.error("Clear Transaction Error:", err);
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: txRef.path,
         operation: 'update',
         requestResourceData: { status: 'cleared' }
       }));
+      
+      toast({
+        variant: "destructive",
+        title: "Clear Failed",
+        description: err.message || "Failed to update balance. Please try again.",
+      });
     })
     .finally(() => {
       setClearingId(null);
