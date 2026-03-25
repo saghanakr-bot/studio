@@ -7,7 +7,7 @@ import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, PlusCircle, Filter, Wallet, ArrowRight, ShieldCheck, Zap, BarChart3, Loader2 } from "lucide-react";
+import { Download, PlusCircle, Filter, Wallet, ArrowRight, ShieldCheck, Zap, BarChart3, Loader2, LogIn } from "lucide-react";
 import { NewFinancialEntryModal } from "@/components/dashboard/new-financial-entry-modal";
 import { useUser, useAuth } from "@/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
@@ -45,59 +45,59 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col gap-16 py-12 md:py-24">
+      <div className="flex flex-col gap-16 py-12 md:py-24 animate-in fade-in duration-700">
         <div className="flex flex-col items-center text-center gap-6 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium border border-primary/20">
             <Zap size={14} />
             <span>AI-Powered Cash Flow Management</span>
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900">
-            Master Your Business <span className="text-primary">Cash Flow</span> with Payplanr
+          <h1 className="text-4xl md:text-7xl font-extrabold tracking-tight text-slate-900 leading-tight">
+            Master Your Business <span className="text-primary">Cash Flow</span>
           </h1>
           <p className="text-xl text-muted-foreground leading-relaxed">
-            Extract insights from bank statements, track every transaction, and project your financial future with our AI-driven platform.
+            Automatically extract insights from bank statements, track every transaction, and project your financial future with our AI-driven platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
-            <Button size="lg" className="h-14 px-8 text-lg gap-2 bg-primary hover:bg-primary/90" onClick={handleSignIn}>
-              Get Started for Free <ArrowRight size={20} />
+            <Button size="lg" className="h-14 px-10 text-lg gap-2 bg-primary hover:bg-primary/90" onClick={handleSignIn}>
+              Sign In with Google <ArrowRight size={20} />
             </Button>
-            <Button size="lg" variant="outline" className="h-14 px-8 text-lg">
-              View Demo
+            <Button size="lg" variant="outline" className="h-14 px-10 text-lg">
+              Learn More
             </Button>
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
+          <Card className="border-none shadow-md bg-white hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 mb-2">
                 <BarChart3 size={24} />
               </div>
               <CardTitle>AI Statement Analysis</CardTitle>
               <CardDescription>
-                Upload PDFs or images. Our AI extracts every transaction and balance automatically.
+                Upload PDFs or images. Our AI extracts every transaction and balance automatically with precision.
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
+          <Card className="border-none shadow-md bg-white hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-2">
                 <ShieldCheck size={24} />
               </div>
-              <CardTitle>Real-Time Tracking</CardTitle>
+              <CardTitle>Verified Accuracy</CardTitle>
               <CardDescription>
-                See your verified closing balance across all accounts in a single, unified dashboard.
+                We cross-reference every debit and credit against your opening balance to ensure your total is 100% verified.
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
+          <Card className="border-none shadow-md bg-white hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 mb-2">
                 <Zap size={24} />
               </div>
               <CardTitle>Smart Projections</CardTitle>
               <CardDescription>
-                Plan your business growth with automated reminders and historical cash flow analysis.
+                Predict future liquidity based on recurring patterns and automated payment reminders.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -105,13 +105,13 @@ export default function DashboardPage() {
 
         <div className="bg-slate-900 rounded-3xl p-8 md:p-16 text-white flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-4 max-w-xl">
-            <h2 className="text-3xl font-bold">Ready to take control?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold">Secure your financial future today.</h2>
             <p className="text-slate-400 text-lg">
-              Join hundreds of businesses using Payplanr to eliminate manual data entry and gain full financial visibility.
+              Join businesses using Payplanr to eliminate manual data entry and gain total financial visibility.
             </p>
           </div>
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-white h-14 px-10 text-lg" onClick={handleSignIn}>
-            Sign In with Google
+            Get Started Now
           </Button>
         </div>
       </div>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Cash Flow Dashboard</h1>

@@ -4,13 +4,60 @@
 import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, BellRing, Settings, Mail } from "lucide-react";
+import { Plus, BellRing, Settings, Mail, LogIn, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useUser, useAuth } from "@/firebase";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RemindersPage() {
+  const { user, loading } = useUser();
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const handleSignIn = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Sign in failed",
+        description: error.message,
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-center gap-6">
+        <div className="bg-primary/10 p-4 rounded-full">
+          <BellRing className="h-12 w-12 text-primary" />
+        </div>
+        <div className="max-w-md">
+          <h1 className="text-2xl font-bold mb-2">Sign in to view Reminders</h1>
+          <p className="text-muted-foreground mb-6">
+            Keep track of your upcoming business expenses and never miss a payment deadline.
+          </p>
+          <Button onClick={handleSignIn} size="lg" className="gap-2">
+            <LogIn size={18} /> Sign In with Google
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary uppercase flex items-center gap-3">
