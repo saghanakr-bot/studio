@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, doc, writeBatch } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -107,9 +107,10 @@ export default function UploadPage() {
     try {
       await batch.commit();
       toast({
-        title: "Success",
-        description: "Statement data synced to your dashboard.",
+        title: "Sync Successful",
+        description: "Your dashboard has been updated with the latest statement data.",
       });
+      // Redirect to dashboard to show updated balance
       router.push("/");
     } catch (e: any) {
       const permissionError = new FirestorePermissionError({
