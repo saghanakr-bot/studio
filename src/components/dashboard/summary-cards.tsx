@@ -2,17 +2,18 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, TrendingDown, Loader2, Info } from "lucide-react";
 import { useFirestore, useCollection, useUser } from "@/firebase";
 import { collection, query, where, collectionGroup } from "firebase/firestore";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function SummaryCards() {
   const db = useFirestore();
   const { user } = useUser();
   
-  // Query for all accounts to get verified opening balances
+  // Query for all accounts to get verified opening/closing balances
   const accountsQuery = useMemo(() => {
     if (!db || !user) return null;
     return query(collection(db, "accounts"), where("userId", "==", user.uid));
@@ -31,13 +32,13 @@ export function SummaryCards() {
   // Calculate the sum of all opening balances across statements
   const totalOpening = useMemo(() => {
     if (!accounts || accounts.length === 0) return 0;
-    return accounts.reduce((acc, curr) => acc + (curr.openingBalance || 0), 0);
+    return accounts.reduce((acc, curr: any) => acc + (curr.openingBalance || 0), 0);
   }, [accounts]);
 
   // Calculate the sum of all closing balances (reported by statements)
-  const totalReportedClosing = useMemo(() => {
+  const totalClosing = useMemo(() => {
     if (!accounts || accounts.length === 0) return 0;
-    return accounts.reduce((acc, curr) => acc + (curr.closingBalance || 0), 0);
+    return accounts.reduce((acc, curr: any) => acc + (curr.closingBalance || 0), 0);
   }, [accounts]);
 
   // Calculate totals for credits (income) and debits (expenses)
@@ -54,12 +55,12 @@ export function SummaryCards() {
     }, { totalCredits: 0, totalDebits: 0 });
   }, [transactions]);
 
-  // DERIVED BALANCE: Opening Balance + Total Credits - Total Debits
-  // This satisfies the requirement to "do" the math of credits/debits
+  // Derived check: Does Opening + Credits - Debits = Closing?
   const calculatedBalance = totalOpening + totalCredits - totalDebits;
+  const isBalanced = Math.abs(calculatedBalance - totalClosing) < 0.01;
 
   // Percentage change based on the opening balance
-  const netChange = calculatedBalance - totalOpening;
+  const netChange = totalClosing - totalOpening;
   const percentageChange = totalOpening !== 0 ? ((netChange / totalOpening) * 100).toFixed(1) : "0";
 
   if (accountsLoading || transactionsLoading) {
@@ -78,18 +79,36 @@ export function SummaryCards() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="border-none shadow-sm overflow-hidden relative">
-        <div className="absolute top-0 right-0 p-3 text-primary/10">
+      <Card className="border-none shadow-sm overflow-hidden relative bg-primary text-primary-foreground">
+        <div className="absolute top-0 right-0 p-3 opacity-10">
           <Wallet size={80} />
         </div>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-          <Wallet className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4" />
+            {hasData && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3.5 w-3.5 opacity-70" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">
+                      {isBalanced 
+                        ? "Balance verified: Opening + Credits - Debits matches Closing."
+                        : `Discrepancy detected: Calculated ₹${calculatedBalance.toLocaleString()} vs Reported ₹${totalClosing.toLocaleString()}`}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{calculatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-          <p className="text-xs text-muted-foreground">
-            {hasData ? `Derived from ${accounts.length} synced statements` : "No accounts synced yet"}
+          <div className="text-2xl font-bold">₹{totalClosing.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <p className="text-xs opacity-80 mt-1">
+            {hasData ? `Verified closing from ${accounts.length} statement(s)` : "No statements synced"}
           </p>
         </CardContent>
       </Card>
@@ -102,7 +121,7 @@ export function SummaryCards() {
         <CardContent>
           <div className="text-2xl font-bold text-emerald-600">₹{totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total money in (Credits)" : "Awaiting statement upload"}
+            {hasData ? "Total income extracted" : "Awaiting upload"}
           </p>
         </CardContent>
       </Card>
@@ -115,14 +134,14 @@ export function SummaryCards() {
         <CardContent>
           <div className="text-2xl font-bold text-rose-600">₹{totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total money out (Debits)" : "Awaiting statement upload"}
+            {hasData ? "Total expenses extracted" : "Awaiting upload"}
           </p>
         </CardContent>
       </Card>
 
       <Card className={cn(
         "border-none shadow-sm transition-colors",
-        hasData ? (netChange >= 0 ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground") : "bg-muted text-muted-foreground"
+        hasData ? (netChange >= 0 ? "bg-accent text-accent-foreground" : "bg-destructive text-destructive-foreground") : "bg-muted text-muted-foreground"
       )}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Net Growth</CardTitle>
@@ -133,7 +152,7 @@ export function SummaryCards() {
             {hasData ? `${netChange >= 0 ? "+" : "-"}₹${Math.abs(netChange).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "No Data"}
           </div>
           <p className={cn("text-xs", hasData ? "opacity-80" : "text-muted-foreground")}>
-            {hasData ? `${percentageChange}% change from initial opening` : "Upload a statement to begin"}
+            {hasData ? `${percentageChange}% change from opening` : "Upload a statement"}
           </p>
         </CardContent>
       </Card>
