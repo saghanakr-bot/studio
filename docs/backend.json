@@ -28,9 +28,10 @@
         "amount": { "type": "number" },
         "type": { "type": "string", "enum": ["debit", "credit"] },
         "category": { "type": "string" },
-        "subCategory": { "type": "string" }
+        "subCategory": { "type": "string" },
+        "status": { "type": "string", "enum": ["cleared", "pending"] }
       },
-      "required": ["accountId", "date", "description", "amount", "type"]
+      "required": ["accountId", "date", "description", "amount", "type", "status"]
     }
   },
   "auth": {

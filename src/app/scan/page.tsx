@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -16,12 +17,13 @@ import {
   TrendingDown, 
   Calendar,
   Building2,
-  Tag
+  Tag,
+  Clock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { extractInvoice, ExtractInvoiceOutput } from "@/ai/flows/extract-invoice-flow";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { collection, doc, setDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -87,12 +89,9 @@ function ScanContent() {
       const accountsSnapshot = await getDocs(accountsQuery);
       
       let accountId = "";
-      let currentBalance = 0;
       
       if (!accountsSnapshot.empty) {
-        const accountDoc = accountsSnapshot.docs[0];
-        accountId = accountDoc.id;
-        currentBalance = accountDoc.data().closingBalance || 0;
+        accountId = accountsSnapshot.docs[0].id;
       } else {
         const newAccountRef = doc(accountsRef);
         accountId = newAccountRef.id;
@@ -105,33 +104,21 @@ function ScanContent() {
         });
       }
 
-      // 2. Calculate new balance
-      const changeAmount = type === "income" ? result.amount : -result.amount;
-      const newBalance = currentBalance + changeAmount;
+      // 2. Calculate amount
+      const txAmount = type === "income" ? result.amount : -result.amount;
 
-      // 3. Update account balance (non-blocking pattern)
-      const accountUpdateRef = doc(db, "accounts", accountId);
-      setDoc(accountUpdateRef, { 
-        closingBalance: newBalance,
-        lastUpdated: new Date().toISOString() 
-      }, { merge: true }).catch(e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: accountUpdateRef.path,
-          operation: 'update',
-          requestResourceData: { closingBalance: newBalance }
-        }));
-      });
-
-      // 4. Create the transaction
+      // 3. Create the transaction as PENDING
+      // We do NOT update the account balance here per user request
       const txRef = doc(collection(db, "accounts", accountId, "transactions"));
       const txData = {
         date: result.date,
         description: `${result.vendor}: ${result.description}`,
-        amount: changeAmount,
+        amount: txAmount,
         type: type === "income" ? "credit" : "debit",
         category: result.category,
         accountId: accountId,
-        status: "cleared"
+        status: "pending",
+        createdAt: new Date().toISOString()
       };
 
       setDoc(txRef, txData).catch(e => {
@@ -143,8 +130,8 @@ function ScanContent() {
       });
 
       toast({
-        title: "Success",
-        description: `Balance updated. Redirecting to dashboard...`,
+        title: "Saved as Pending",
+        description: `Entry added. Mark as 'Cleared' on the dashboard to update balance.`,
       });
 
       router.push("/");
@@ -153,7 +140,7 @@ function ScanContent() {
       toast({
         variant: "destructive",
         title: "Sync Error",
-        description: "Failed to update your accounts.",
+        description: "Failed to save the transaction.",
       });
       setIsSyncing(false);
     }
@@ -170,7 +157,7 @@ function ScanContent() {
         </div>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary capitalize">Scan {type}</h1>
-          <p className="text-muted-foreground">Upload an invoice or bill to update your cash flow instantly.</p>
+          <p className="text-muted-foreground">Upload an invoice or bill. It will be stored as pending until cleared.</p>
         </div>
       </div>
 
@@ -222,7 +209,7 @@ function ScanContent() {
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><TrendingUp size={12} /> Amount</p>
                 <p className={cn("text-xl font-bold", type === 'income' ? "text-emerald-600" : "text-rose-600")}>
-                  {type === 'income' ? "+" : "-"}₹{result.amount.toLocaleString()}
+                  ₹{result.amount.toLocaleString()}
                 </p>
               </div>
               <div className="space-y-1">
@@ -232,11 +219,12 @@ function ScanContent() {
             </div>
             
             <div className="pt-4 border-t flex flex-col gap-3">
-              <p className="text-xs text-muted-foreground">
-                Syncing will {type === 'income' ? 'increase' : 'decrease'} your total balance by ₹{result.amount.toLocaleString()}.
-              </p>
+              <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg text-xs">
+                <Clock size={16} className="shrink-0 mt-0.5" />
+                <p>This will be saved as a <strong>Pending Transaction</strong>. It will not affect your balance until you mark it as cleared on the dashboard.</p>
+              </div>
               <Button className="w-full bg-primary h-12" disabled={isSyncing} onClick={syncToDashboard}>
-                {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Updating Balance...</> : `Confirm & Sync ${type === 'income' ? 'Income' : 'Bill'}`}
+                {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Save Pending ${type === 'income' ? 'Income' : 'Bill'}`}
               </Button>
             </div>
           </CardContent>
