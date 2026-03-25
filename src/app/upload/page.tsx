@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, CheckCircle2, Loader2, Sparkles, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Upload, FileText, CheckCircle2, Loader2, Sparkles, TrendingUp, TrendingDown, Wallet, Image as ImageIcon, File } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { categorizeTransactions, AICategorizationOutput } from "@/ai/flows/ai-transaction-categorization";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +20,28 @@ export default function UploadPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      // Limit file size to 10MB
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please upload a file smaller than 10MB.",
+        });
+        return;
+      }
+      setFile(selectedFile);
+      setResults(null); // Reset results when a new file is chosen
     }
+  };
+
+  const fileToDataUri = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const processFile = async () => {
@@ -29,55 +49,48 @@ export default function UploadPage() {
     
     setIsProcessing(true);
     
-    // Mock input data simulating what would be parsed from a real file
-    const mockTransactions = [
-      { date: '2024-05-18', description: 'SaaS Platform Monthly', amount: -199.00, type: 'debit' as const, transactionId: 'tx_001' },
-      { date: '2024-05-17', description: 'Apple Store - MacBook', amount: -2499.00, type: 'debit' as const, transactionId: 'tx_002' },
-      { date: '2024-05-16', description: 'Stripe Payout - Project Alpha', amount: 8500.00, type: 'credit' as const, transactionId: 'tx_003' },
-    ];
-
-    const mockRawText = `
-      STATEMENT SUMMARY
-      Statement Period: May 01, 2024 - May 31, 2024
-      Opening Balance: ₹45,230.50
-      Closing Balance: ₹51,032.50
-      Total Credits: ₹8,500.00
-      Total Debits: ₹2,698.00
-    `;
-
     try {
+      const dataUri = await fileToDataUri(file);
       const response = await categorizeTransactions({ 
-        transactions: mockTransactions,
-        rawText: mockRawText 
+        statementDataUri: dataUri
       });
+      
       setResults(response);
       toast({
         title: "Analysis Complete",
         description: `Successfully extracted balances and categorized ${response.categorizedTransactions.length} transactions.`,
       });
     } catch (error) {
+      console.error("Error processing statement:", error);
       toast({
         variant: "destructive",
         title: "Error processing transactions",
-        description: "There was a problem with the AI analysis service.",
+        description: "There was a problem with the AI analysis service. Please ensure the file is a clear bank statement.",
       });
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const getFileIcon = () => {
+    if (!file) return <Upload className="h-8 w-8 text-primary" />;
+    if (file.type.startsWith('image/')) return <ImageIcon className="h-8 w-8 text-primary" />;
+    if (file.type === 'application/pdf') return <FileText className="h-8 w-8 text-primary" />;
+    return <File className="h-8 w-8 text-primary" />;
+  };
+
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-8 pb-12">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">Upload Bank Statements</h1>
-        <p className="text-muted-foreground">Import your financial data and let Payplanr AI extract balances and organize transactions.</p>
+        <p className="text-muted-foreground">Import PDFs or images of your bank statements and let Payplanr AI extract balances and organize transactions.</p>
       </div>
 
       <div className="grid gap-6">
         <Card className="border-none shadow-sm">
           <CardHeader>
             <CardTitle>Select Statement</CardTitle>
-            <CardDescription>Supported formats: CSV, OFX, QFX (Max 10MB)</CardDescription>
+            <CardDescription>Supported formats: PDF, PNG, JPG, JPEG (Max 10MB)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div 
@@ -87,26 +100,33 @@ export default function UploadPage() {
               )}
             >
               <div className="p-4 bg-primary/10 rounded-full mb-4">
-                <Upload className="h-8 w-8 text-primary" />
+                {getFileIcon()}
               </div>
               <div className="text-center">
                 <Label htmlFor="file-upload" className="cursor-pointer">
                   <span className="text-primary font-semibold text-lg">Click to upload</span> or drag and drop
-                  <p className="text-sm text-muted-foreground mt-1">Your business data is securely encrypted</p>
+                  <p className="text-sm text-muted-foreground mt-1">PDFs and high-quality images work best</p>
                 </Label>
                 <Input 
                   id="file-upload" 
                   type="file" 
                   className="hidden" 
                   onChange={handleFileChange} 
-                  accept=".csv,.ofx,.qfx"
+                  accept="application/pdf,image/*"
                 />
               </div>
               {file && (
                 <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-background border rounded-lg shadow-sm">
-                  <FileText className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">{file.name}</span>
-                  <button onClick={() => setFile(null)} className="ml-2 text-muted-foreground hover:text-destructive">×</button>
+                  <span className="text-sm font-medium truncate max-w-[200px]">{file.name}</span>
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setFile(null);
+                    }} 
+                    className="ml-2 text-muted-foreground hover:text-destructive text-lg font-bold"
+                  >
+                    ×
+                  </button>
                 </div>
               )}
             </div>
@@ -118,11 +138,11 @@ export default function UploadPage() {
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" /> Analyzing Statement...
+                  <Loader2 className="h-5 w-5 animate-spin" /> Analyzing Document...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-5 w-5" /> Analyze Statement
+                  <Sparkles className="h-5 w-5" /> Extract & Analyze
                 </>
               )}
             </Button>
@@ -136,7 +156,9 @@ export default function UploadPage() {
                 <CheckCircle2 className="text-emerald-500 h-5 w-5" />
                 Analysis Results
               </CardTitle>
-              <CardDescription>AI-extracted summary and transaction categorization.</CardDescription>
+              <CardDescription>
+                AI-extracted data for {results.summary.statementPeriod || "Statement Period"}.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
               {/* Statement Summary Section */}
@@ -171,8 +193,11 @@ export default function UploadPage() {
 
               {/* Transactions Section */}
               <div>
-                <h3 className="text-sm font-semibold mb-4">Categorized Transactions</h3>
-                <div className="divide-y">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Extracted Transactions ({results.categorizedTransactions.length})
+                </h3>
+                <div className="divide-y max-h-[400px] overflow-y-auto pr-2">
                   {results.categorizedTransactions.map((tx, i) => (
                     <div key={i} className="py-4 flex items-center justify-between">
                       <div>
@@ -192,19 +217,25 @@ export default function UploadPage() {
                         </div>
                         <div className={cn(
                           "font-bold min-w-[80px] text-right",
-                          tx.amount > 0 ? "text-emerald-600" : ""
+                          tx.type === 'credit' ? "text-emerald-600" : ""
                         )}>
-                          {tx.amount > 0 ? "+" : ""}₹{Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {tx.type === 'credit' ? "+" : ""}₹{Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </div>
                       </div>
                     </div>
                   ))}
+                  {results.categorizedTransactions.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-8 italic">No transactions detected in this document.</p>
+                  )}
                 </div>
               </div>
 
               <div className="pt-6 flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setResults(null)}>Reset</Button>
-                <Button className="bg-primary hover:bg-primary/90">Confirm All & Update Dashboard</Button>
+                <Button variant="outline" onClick={() => {
+                  setResults(null);
+                  setFile(null);
+                }}>Clear All</Button>
+                <Button className="bg-primary hover:bg-primary/90">Confirm & Sync to Dashboard</Button>
               </div>
             </CardContent>
           </Card>
