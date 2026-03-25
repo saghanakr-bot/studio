@@ -51,26 +51,27 @@ const categorizeTransactionsPrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash',
   input: { schema: AICategorizationInputSchema },
   output: { schema: AICategorizationOutputSchema },
-  prompt: `You are a professional financial auditor. Your task is to analyze the provided bank statement (image or PDF) and extract all financial data with 100% accuracy.
+  prompt: `You are a professional financial auditor and expert OCR analyst. Your task is to analyze the provided bank statement and extract all data with 100% mathematical integrity.
 
-1. **Transaction Extraction**:
-   - Extract EVERY transaction listed in the table. 
-   - Clean the 'description' to remove reference numbers or gibberish OCR characters, leaving only the vendor name or transaction purpose.
-   - Use YYYY-MM-DD format for dates.
-   - Determine 'type' carefully: Credits increase the balance, Debits decrease it.
+FOLLOW THIS STEP-BY-STEP PROCESS:
 
-2. **Categorization Logic**:
-   - Categorize each transaction into standard business categories: Sales Revenue, Rent, Utilities, Salaries, Software, Marketing, Travel, Office Supplies, Tax, or Loan Payment.
-
-3. **Summary Verification**:
-   - Find the 'Opening Balance' (often labeled as "Balance B/F" or "Previous Balance").
-   - Find the 'Closing Balance' (the final number in the balance column or a footer summary).
-   - Identify the Currency (e.g., INR, USD).
+1. **Scan Table**: Identify the transaction table. Look for columns like Date, Description, Withdrawals/Debits, Deposits/Credits, and Balance.
+2. **Verification Step**: 
+   - Identify the Opening Balance and Closing Balance from the document header or footer.
+   - Extract every single transaction row.
+   - MATH CHECK: Sum all extracted Credits and subtract all extracted Debits from the Opening Balance. This MUST equal the Closing Balance.
+   - If there is a discrepancy, re-examine the OCR text for missed decimals or misread digits (e.g., 5 vs 6).
+3. **Data Cleaning**:
+   - Clean descriptions: Remove generic codes like "NEFT/RTGS", "CMS/", or long reference numbers. Keep the primary vendor or payer name.
+   - Date Format: Convert all dates to YYYY-MM-DD.
+4. **Categorization**:
+   - Use standard business categories: Sales Revenue, Rent, Utilities, Salaries, Software, Marketing, Travel, Office Supplies, Tax, or Loan Payment.
+   - If a transaction is an internal transfer between accounts, categorize as "Transfer".
 
 Document Content:
 {{media url=statementDataUri}}
 
-Return the data strictly as JSON matching the AICategorizationOutputSchema. If a value is unclear, provide your best professional estimate based on the surrounding context.`,
+Return the data strictly as JSON matching the AICategorizationOutputSchema. Accuracy is paramount.`,
 });
 
 const categorizeTransactionsFlow = ai.defineFlow(

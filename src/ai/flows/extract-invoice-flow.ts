@@ -42,16 +42,19 @@ const extractInvoicePrompt = ai.definePrompt({
   output: { schema: ExtractInvoiceOutputSchema },
   prompt: `You are an expert bookkeeping assistant. Extract precise financial data from this {{type}} document.
 
-- **Vendor**: Identify the legal name of the entity that issued this document. Look at the header.
-- **Total Amount**: Find the 'Grand Total' or 'Total Due'. Ignore sub-totals unless the grand total is missing.
-- **Date**: Extract the primary invoice or billing date. Format as YYYY-MM-DD.
-- **Description**: Summarize the purpose of the invoice (e.g., "Cloud hosting services", "Consulting fee").
-- **Category**: Assign a logical business category (e.g., "Software", "Marketing", "Professional Services").
+ANALYSIS GUIDELINES:
+1. **Vendor/Client Identification**: Look at the prominent logo or header text. For bills, this is the company charging you. For income, this is your company's name or the client's name.
+2. **Date Extraction**: Look for "Invoice Date", "Billing Date", or just "Date". Use YYYY-MM-DD format.
+3. **Total Amount Verification**: 
+   - Locate the 'Grand Total', 'Total Due', or 'Amount Payable'.
+   - Verify if this total includes tax. Extract the tax amount separately if listed.
+   - If there are multiple line items, ensure their sum matches the sub-total before tax.
+4. **Description**: Summarize the primary nature of the transaction in 5-7 words.
 
 Document Content:
 {{media url=invoiceDataUri}}
 
-Return the result as a JSON object matching ExtractInvoiceOutputSchema. Be extremely careful with the numerical 'amount'.`,
+Return the result as a JSON object matching ExtractInvoiceOutputSchema. If a field is missing, provide a logical default based on context (e.g., category "General Expense" if unclear).`,
 });
 
 const extractInvoiceFlow = ai.defineFlow(
