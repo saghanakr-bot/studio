@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent for extracting data from single invoices or bills.
@@ -36,6 +37,7 @@ export async function extractInvoice(input: ExtractInvoiceInput): Promise<Extrac
 
 const extractInvoicePrompt = ai.definePrompt({
   name: 'extractInvoicePrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: ExtractInvoiceInputSchema },
   output: { schema: ExtractInvoiceOutputSchema },
   prompt: `You are a financial data entry specialist. 

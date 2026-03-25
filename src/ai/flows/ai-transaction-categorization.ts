@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent for categorizing bank statement transactions and extracting statement summaries from PDFs or Images.
@@ -32,7 +33,6 @@ const CategorizedTransactionOutputSchema = z.object({
 const AICategorizationOutputSchema = z.object({
   categorizedTransactions: z.array(CategorizedTransactionOutputSchema).describe('A list of bank statement transactions extracted from the document.'),
   summary: z.object({
-    openingBalance: z.number().describe('The starting balance found on the statement header.'),
     closingBalance: z.number().describe('The ending balance found on the statement footer.'),
     statementPeriod: z.string().optional().describe('The date range of the statement.'),
     currency: z.string().default('INR').describe('The currency detected in the statement.'),
@@ -46,6 +46,7 @@ export async function categorizeTransactions(input: AICategorizationInput): Prom
 
 const categorizeTransactionsPrompt = ai.definePrompt({
   name: 'categorizeTransactionsPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: AICategorizationInputSchema },
   output: { schema: AICategorizationOutputSchema },
   prompt: `You are an expert financial assistant specialized in analyzing business bank statements.
@@ -54,7 +55,7 @@ You will be provided with a bank statement in PDF or Image format.
 Your tasks:
 1. Extract ALL transactions listed in the document.
 2. Categorize each transaction into an appropriate business spending or income category.
-3. Extract the statement's Opening Balance and Closing Balance.
+3. Extract the statement's Closing Balance.
 4. Identify the statement period and currency.
 
 Common business categories include:
