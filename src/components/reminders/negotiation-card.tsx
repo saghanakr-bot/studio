@@ -11,8 +11,7 @@ import {
   Sparkles, 
   Globe, 
   Loader2,
-  Copy,
-  ExternalLink
+  Copy
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Transaction } from "@/lib/types";
@@ -65,7 +64,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
 
   const handleEmail = () => {
     const email = transaction.contactInfo?.email || "";
-    const subject = encodeURIComponent(`Payment Update: ${transaction.description}`);
+    const subject = encodeURIComponent("Payment Request");
     const body = encodeURIComponent(message);
     window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
   };

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -6,7 +7,8 @@ import {
   PieChart, 
   Wallet,
   RefreshCw,
-  Loader2
+  Loader2,
+  CalendarDays
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,7 +34,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -41,8 +42,9 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Cash Flow Projections", url: "/projections", icon: TrendingUp },
-  { title: "Financial Reports", url: "/reports", icon: PieChart },
+  { title: "Projections", url: "/projections", icon: TrendingUp },
+  { title: "Reminders", url: "/reminders", icon: CalendarDays },
+  { title: "Reports", url: "/reports", icon: PieChart },
 ];
 
 export function AppSidebar() {
