@@ -8,7 +8,8 @@ import {
   RefreshCw,
   Loader2,
   CalendarDays,
-  ShieldCheck
+  ShieldCheck,
+  Zap
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -43,9 +44,8 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Projections", url: "/projections", icon: TrendingUp },
   { title: "Reminders", url: "/reminders", icon: CalendarDays },
-  { title: "Decision", url: "/decision", icon: ShieldCheck },
+  { title: "Strategy & Decision", url: "/decision", icon: Zap },
 ];
 
 export function AppSidebar() {
@@ -89,7 +89,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2 text-white">
+      <SidebarHeader className="p-4 border-b border-white/10 flex flex-row items-center gap-2 text-white">
         <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
           <Wallet size={24} />
         </div>
@@ -101,16 +101,16 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-white/60 group-data-[collapsible=icon]:hidden">
-            Menu
+            Main Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title} className="h-11">
                     <Link href={item.url}>
                       <item.icon className="w-5 h-5" />
-                      <span>{item.title}</span>
+                      <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -156,7 +156,7 @@ export function AppSidebar() {
               </Avatar>
               <div className="flex flex-col text-left group-data-[collapsible=icon]:hidden">
                 <span className="text-sm font-medium">Demo User</span>
-                <span className="text-xs text-white/50">Admin</span>
+                <span className="text-xs text-white/50 font-bold uppercase tracking-tighter">Premium</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
