@@ -2,11 +2,10 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, TrendingDown, Loader2, Info, AlertCircle } from "lucide-react";
+import { Wallet, Loader2, Info, AlertCircle } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query } from "firebase/firestore";
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function SummaryCards() {
@@ -30,17 +29,12 @@ export function SummaryCards() {
     }, { opening: 0, closing: 0, net: 0, count: 0 });
   }, [accounts]);
 
-  const netChange = totals.closing - totals.opening;
-  const percentageChange = totals.opening !== 0 ? ((netChange / totals.opening) * 100).toFixed(1) : "0";
-
   if (accountsLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-3">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="border-none shadow-sm h-32 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </Card>
-        ))}
+      <div className="grid gap-4 md:grid-cols-1">
+        <Card className="border-none shadow-sm h-32 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </Card>
       </div>
     );
   }
@@ -57,13 +51,13 @@ export function SummaryCards() {
   const hasData = accounts && accounts.length > 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-1">
       <Card className="border-none shadow-sm overflow-hidden relative bg-primary text-primary-foreground">
         <div className="absolute top-0 right-0 p-3 opacity-10">
           <Wallet size={80} />
         </div>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
+          <CardTitle className="text-sm font-medium uppercase tracking-wider">Total Business Liquidity</CardTitle>
           <div className="flex items-center gap-2">
             <Wallet className="h-4 w-4" />
             {hasData && (
@@ -73,7 +67,7 @@ export function SummaryCards() {
                     <Info className="h-3.5 w-3.5 opacity-70" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">Aggregated closing balance from your synced records.</p>
+                    <p className="text-xs">Aggregated closing balance from all your synced records.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -81,44 +75,9 @@ export function SummaryCards() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{totals.closing.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-          <p className="text-xs opacity-80 mt-1">
-            {hasData ? `Verified from ${totals.count} record(s)` : "No data synced"}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="border-none shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Net Change</CardTitle>
-          <div className={cn("p-1 rounded-full", netChange >= 0 ? "bg-emerald-100" : "bg-rose-100")}>
-            {netChange >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-600" /> : <TrendingDown className="h-3 w-3 text-rose-600" />}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className={cn("text-2xl font-bold", netChange >= 0 ? "text-emerald-600" : "text-rose-600")}>
-            ₹{Math.abs(netChange).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total movement" : "Awaiting sync"}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className={cn(
-        "border-none shadow-sm transition-colors",
-        hasData ? (netChange >= 0 ? "bg-accent text-accent-foreground" : "bg-destructive text-destructive-foreground") : "bg-muted text-muted-foreground"
-      )}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Growth %</CardTitle>
-          {netChange >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {hasData ? `${percentageChange}%` : "0.0%"}
-          </div>
-          <p className={cn("text-xs", hasData ? "opacity-80" : "text-muted-foreground")}>
-            {hasData ? `Performance over period` : "Awaiting data"}
+          <div className="text-3xl md:text-4xl font-black">₹{totals.closing.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <p className="text-xs opacity-80 mt-2 font-medium">
+            {hasData ? `Verified from ${totals.count} account record(s)` : "Awaiting data sync"}
           </p>
         </CardContent>
       </Card>
