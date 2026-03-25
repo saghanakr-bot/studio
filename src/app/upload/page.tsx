@@ -101,9 +101,9 @@ export default function UploadPage() {
     const accountRef = doc(collection(db, "accounts"));
     const accountData = {
       name: file?.name || "Extracted Statement",
-      openingBalance: results.summary.openingBalance,
-      closingBalance: results.summary.closingBalance,
-      currency: results.summary.currency,
+      openingBalance: results.summary.openingBalance || 0,
+      closingBalance: results.summary.closingBalance || 0,
+      currency: results.summary.currency || "INR",
       statementPeriod: results.summary.statementPeriod || "Unknown",
       lastUpdated: new Date().toISOString(),
       userId: "demo-user"
@@ -123,17 +123,32 @@ export default function UploadPage() {
     // Fire off all transactions (non-blocking)
     results.categorizedTransactions.forEach((tx) => {
       const txRef = doc(collection(db, "accounts", accountRef.id, "transactions"));
-      const txData = {
-        ...tx,
+      
+      // Sanitizing object to remove any 'undefined' fields before Firestore write
+      const txData: any = {
+        date: tx.date,
+        description: tx.description,
+        amount: tx.amount,
+        type: tx.type,
+        category: tx.category,
         accountId: accountRef.id,
         userId: "demo-user"
       };
+
+      if (tx.transactionId) txData.transactionId = tx.transactionId;
+      if (tx.subCategory) txData.subCategory = tx.subCategory;
+
       setDoc(txRef, txData).catch(async (e) => {
-        // Individual transaction errors handled silently or logged
+        const permissionError = new FirestorePermissionError({
+          path: `accounts/${accountRef.id}/transactions/${txRef.id}`,
+          operation: 'create',
+          requestResourceData: txData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
     });
 
-    // Provide instant feedback and redirect
+    // Provide instant feedback and redirect (Optimistic Redirect)
     toast({
       title: "Syncing Started",
       description: "Redirecting to dashboard. Your data will appear momentarily.",
@@ -200,17 +215,17 @@ export default function UploadPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-2 mb-1"><Wallet className="h-3 w-3" /> Opening Balance</p>
-                  <p className="text-xl font-bold">₹{results.summary.openingBalance.toLocaleString()}</p>
+                  <p className="text-xl font-bold">{(results.summary.currency || "INR")} {results.summary.openingBalance.toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-2 mb-1"><TrendingUp className="h-3 w-3" /> Closing Balance</p>
-                  <p className="text-xl font-bold text-primary">₹{results.summary.closingBalance.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-primary">{(results.summary.currency || "INR")} {results.summary.closingBalance.toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-2 mb-1"><TrendingDown className="h-3 w-3" /> Net Change</p>
                   <p className={cn("text-xl font-bold", results.summary.closingBalance - results.summary.openingBalance >= 0 ? "text-emerald-600" : "text-rose-600")}>
                     {results.summary.closingBalance - results.summary.openingBalance >= 0 ? "+" : ""}
-                    ₹{(results.summary.closingBalance - results.summary.openingBalance).toLocaleString()}
+                    {(results.summary.currency || "INR")} {(results.summary.closingBalance - results.summary.openingBalance).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -229,7 +244,7 @@ export default function UploadPage() {
                       <div className="flex items-center gap-4">
                         <Badge variant="outline" className="bg-primary/5 text-primary">{tx.category}</Badge>
                         <div className={cn("font-bold min-w-[80px] text-right", tx.type === 'credit' ? "text-emerald-600" : "")}>
-                          {tx.type === 'credit' ? "+" : ""}₹{Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {tx.type === 'credit' ? "+" : ""}{(results.summary.currency || "INR")} {Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </div>
                       </div>
                     </div>
