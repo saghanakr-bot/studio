@@ -84,7 +84,7 @@ export default function UploadPage() {
       
       let msg = "There was a problem processing your document. Please ensure it is a clear PDF or Image.";
       if (isQuotaError) msg = "AI service is currently busy (Rate Limit). Please wait 1 minute and try again.";
-      if (isNotFoundError) msg = "AI model configuration issue. Retrying with updated settings...";
+      if (isNotFoundError) msg = "AI model configuration issue. Please contact support or try again later.";
 
       setErrorMessage(msg);
       toast({
