@@ -75,8 +75,16 @@ export default function UploadPage() {
     }
   };
 
-  const syncToDashboard = async () => {
-    if (!results || !db || !user) return;
+  const syncToDashboard = () => {
+    if (!results || !db || !user) {
+      toast({
+        variant: "destructive",
+        title: "Sync failed",
+        description: "Missing data or user session. Please try again.",
+      });
+      return;
+    }
+    
     setIsSyncing(true);
     const batch = writeBatch(db);
     
@@ -104,24 +112,27 @@ export default function UploadPage() {
       });
     });
 
-    try {
-      await batch.commit();
-      toast({
-        title: "Sync Successful",
-        description: "Your dashboard has been updated with the latest statement data.",
+    // Initiate the write operation
+    batch.commit()
+      .then(() => {
+        toast({
+          title: "Sync Successful",
+          description: "Your dashboard has been updated with the latest statement data.",
+        });
+        // Redirect to dashboard
+        router.push("/");
+      })
+      .catch(async (e: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: `accounts/${accountRef.id}`,
+          operation: 'write',
+          requestResourceData: accountData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSyncing(false);
       });
-      // Redirect to dashboard to show updated balance
-      router.push("/");
-    } catch (e: any) {
-      const permissionError = new FirestorePermissionError({
-        path: `accounts/${accountRef.id}`,
-        operation: 'create',
-        requestResourceData: accountData,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   const getFileIcon = () => {
