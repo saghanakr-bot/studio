@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -106,29 +105,31 @@ export function RecentTransactions() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary/50" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-4">
-        <AlertCircle className="h-8 w-8 mb-3 opacity-20" />
-        <p className="text-sm font-medium">Transaction query requires indexing.</p>
-        <p className="text-xs mt-1 max-w-[280px]">The "Recent Transactions" list uses a collection group query which requires a Firestore index. Check your console for the direct link to create it.</p>
+      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-4 bg-muted/20 rounded-xl border border-dashed">
+        <AlertCircle className="h-8 w-8 mb-3 text-amber-500 opacity-50" />
+        <p className="text-sm font-bold text-slate-700">Database Indexing Required</p>
+        <p className="text-xs mt-1 max-w-[320px] leading-relaxed">
+          The cross-account transaction view requires a composite index. Check your browser's developer console (F12) for the direct Firestore link to enable it.
+        </p>
       </div>
     );
   }
 
   if (!transactions || transactions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="bg-muted p-3 rounded-full mb-3">
-          <Inbox className="h-6 w-6 text-muted-foreground" />
+      <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-2xl">
+        <div className="bg-slate-100 p-3 rounded-full mb-3 text-slate-400">
+          <Inbox className="h-6 w-6" />
         </div>
-        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">No Transactions Found</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">Upload a statement or scan an invoice to see activity here.</p>
+        <p className="text-sm font-semibold text-slate-600">No Activity Yet</p>
+        <p className="text-xs text-slate-400 mt-1 max-w-[240px]">Upload a bank statement or scan an invoice to see your recent transactions here.</p>
       </div>
     );
   }
@@ -139,7 +140,7 @@ export function RecentTransactions() {
         <div key={transaction.id} className="flex items-center group">
           <Avatar className="h-9 w-9">
             <AvatarFallback className={cn(
-              "text-xs font-semibold",
+              "text-xs font-bold",
               transaction.type === 'credit' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
             )}>
               {transaction.description?.substring(0, 2).toUpperCase() || "TX"}
@@ -147,19 +148,19 @@ export function RecentTransactions() {
           </Avatar>
           <div className="ml-4 space-y-1 flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium leading-none truncate">{transaction.description}</p>
+              <p className="text-sm font-bold leading-none truncate text-slate-900">{transaction.description}</p>
               {transaction.status === 'pending' && (
-                <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 border-amber-200 bg-amber-50 text-amber-700 font-bold uppercase tracking-wider flex items-center gap-0.5">
-                  <Clock size={8} /> Pending
+                <Badge variant="outline" className="text-[8px] h-3.5 px-1 font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-700">
+                  Pending
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">
-                {transaction.date ? new Date(transaction.date).toLocaleDateString() : 'Unknown date'}
+              <p className="text-[10px] text-slate-500 font-medium">
+                {transaction.date ? new Date(transaction.date).toLocaleDateString() : 'No date'}
               </p>
               {transaction.category && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1 py-0 font-normal">
+                <Badge variant="secondary" className="text-[9px] h-3.5 px-1 py-0 font-bold bg-slate-100 text-slate-600 border-none">
                   {transaction.category}
                 </Badge>
               )}
@@ -168,24 +169,24 @@ export function RecentTransactions() {
           
           <div className="flex items-center gap-4">
             <div className={cn(
-              "font-semibold text-sm",
-              transaction.type === 'credit' ? "text-emerald-600" : "text-foreground"
+              "font-black text-sm",
+              transaction.type === 'credit' ? "text-emerald-600" : "text-slate-900"
             )}>
-              {transaction.type === 'credit' ? "+" : "-"}₹{Math.abs(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {transaction.type === 'credit' ? "+" : "-"}₹{Math.abs(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             
             {transaction.status === 'pending' && (
               <Button 
                 size="sm" 
                 variant="outline" 
-                className="h-8 text-xs bg-primary/5 hover:bg-primary hover:text-white border-primary/20 transition-all gap-1"
+                className="h-8 text-[10px] font-bold bg-white hover:bg-primary hover:text-white border-slate-200 transition-all gap-1 rounded-lg"
                 disabled={clearingId === transaction.id}
                 onClick={() => handleClearTransaction(transaction)}
               >
                 {clearingId === transaction.id ? (
-                  <Loader2 size={12} className="animate-spin" />
+                  <Loader2 size={10} className="animate-spin" />
                 ) : (
-                  <CheckCircle size={12} />
+                  <CheckCircle size={10} />
                 )}
                 Clear
               </Button>
