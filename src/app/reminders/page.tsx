@@ -3,7 +3,7 @@
 import { PaymentCalendar } from "@/components/reminders/payment-calendar";
 import { SmartPrioritization } from "@/components/reminders/smart-prioritization";
 import { Button } from "@/components/ui/button";
-import { Plus, BellRing, Settings, Mail, ShieldCheck } from "lucide-react";
+import { Plus, BellRing, Mail, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,6 @@ export default function RemindersPage() {
           <p className="text-muted-foreground mt-1 text-base">Predictive cash flow management and obligation tracking.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="h-11 px-6">
-            <Settings className="mr-2 h-4 w-4" /> Settings
-          </Button>
           <NewFinancialEntryModal 
             trigger={
               <Button className="bg-primary h-11 px-6 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
