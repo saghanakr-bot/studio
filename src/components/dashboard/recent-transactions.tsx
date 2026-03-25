@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -7,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useFirestore, useCollection } from "@/firebase";
 import { collectionGroup, query, orderBy, limit, doc, runTransaction } from "firebase/firestore";
 import { useMemo, useState } from "react";
-import { Loader2, Inbox, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Loader2, Inbox, AlertCircle, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -20,7 +21,8 @@ export function RecentTransactions() {
   const transactionsQuery = useMemo(() => {
     if (!db) return null;
     try {
-      // Note: This collectionGroup query requires a composite index in Firestore.
+      // NOTE: This query requires a Composite Index for collectionGroup "transactions" 
+      // sorted by "date" descending. Check the browser console for the direct setup link.
       return query(
         collectionGroup(db, "transactions"),
         orderBy("date", "desc"),
@@ -51,25 +53,21 @@ export function RecentTransactions() {
     const accountRef = doc(db, "accounts", transaction.accountId);
     const txRef = doc(db, "accounts", transaction.accountId, "transactions", transaction.id);
 
-    // Run atomic transaction to update both the status and the account balance
     runTransaction(db, async (txn) => {
       const accountDoc = await txn.get(accountRef);
       if (!accountDoc.exists()) {
         throw new Error("Target account does not exist.");
       }
 
-      // Ensure we are working with numbers to prevent string concatenation
       const currentBalance = Number(accountDoc.data().closingBalance || 0);
       const amount = Number(transaction.amount || 0);
       const newBalance = currentBalance + amount;
 
-      // Update the transaction status
       txn.update(txRef, { 
         status: "cleared", 
         clearedAt: new Date().toISOString() 
       });
       
-      // Update the account balance
       txn.update(accountRef, { 
         closingBalance: newBalance,
         lastUpdated: new Date().toISOString()
@@ -112,11 +110,13 @@ export function RecentTransactions() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-4 bg-muted/20 rounded-xl border border-dashed">
-        <AlertCircle className="h-8 w-8 mb-3 text-amber-500 opacity-50" />
-        <p className="text-sm font-bold text-slate-700">Database Indexing Required</p>
+      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-4 bg-amber-50 rounded-xl border border-amber-100">
+        <AlertCircle className="h-8 w-8 mb-3 text-amber-500" />
+        <p className="text-sm font-bold text-slate-700">Database Index Required</p>
         <p className="text-xs mt-1 max-w-[320px] leading-relaxed">
-          The cross-account transaction view requires a composite index. Check your browser's developer console (F12) for the direct Firestore link to enable it.
+          Firestore requires a <strong>Composite Index</strong> for this view.
+          <br /><br />
+          <strong>Fix:</strong> Open your browser's developer console (F12) and click the provided link to create it automatically.
         </p>
       </div>
     );
@@ -129,7 +129,7 @@ export function RecentTransactions() {
           <Inbox className="h-6 w-6" />
         </div>
         <p className="text-sm font-semibold text-slate-600">No Activity Yet</p>
-        <p className="text-xs text-slate-400 mt-1 max-w-[240px]">Upload a bank statement or scan an invoice to see your recent transactions here.</p>
+        <p className="text-xs text-slate-400 mt-1 max-w-[240px]">Sync a statement or add a manual entry to see activity here.</p>
       </div>
     );
   }

@@ -9,8 +9,7 @@ import {
   Wallet,
   Settings,
   RefreshCw,
-  Loader2,
-  Database
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -28,10 +27,9 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useFirestore } from "@/firebase";
-import { collection, getDocs, deleteDoc, doc, collectionGroup } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, collectionGroup } from "firebase/firestore";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { seedDemoData } from "@/lib/db-seed";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -57,29 +55,6 @@ export function AppSidebar() {
   const db = useFirestore();
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
-
-  const handleSeedData = async () => {
-    if (!db) return;
-    setIsSeeding(true);
-    try {
-      await seedDemoData(db);
-      toast({
-        title: "Demo Data Seeded",
-        description: "Your dashboard is now populated with sample records.",
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("Seed Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Seed Failed",
-        description: "Check your console for Firebase permission errors.",
-      });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   const handleResetData = async () => {
     if (!db) return;
@@ -148,17 +123,6 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-white/10 space-y-2">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              onClick={handleSeedData}
-              disabled={isSeeding}
-              className="h-10 w-full justify-start gap-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-            >
-              {isSeeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Database className="w-5 h-5" />}
-              <span className="group-data-[collapsible=icon]:hidden">Seed Demo Data</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
           <SidebarMenuItem>
             <AlertDialog>
               <AlertDialogTrigger asChild>
