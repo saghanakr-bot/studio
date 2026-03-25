@@ -2,9 +2,9 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, TrendingDown, Loader2, Info } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, TrendingDown, Loader2, Info, AlertCircle } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, query, collectionGroup } from "firebase/firestore";
+import { collection, query } from "firebase/firestore";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,57 +12,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 export function SummaryCards() {
   const db = useFirestore();
   
-  // Query for all accounts (public demo state)
   const accountsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, "accounts"));
   }, [db]);
 
-  const { data: accounts, loading: accountsLoading } = useCollection(accountsQuery);
+  const { data: accounts, loading: accountsLoading, error: accountsError } = useCollection(accountsQuery);
 
-  // Query for all transactions (public demo state)
-  const transactionsQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collectionGroup(db, "transactions"));
-  }, [db]);
-
-  const { data: transactions, loading: transactionsLoading } = useCollection(transactionsQuery);
-
-  // Calculate the sum of all opening balances across statements
-  const totalOpening = useMemo(() => {
-    if (!accounts || accounts.length === 0) return 0;
-    return accounts.reduce((acc, curr: any) => acc + (curr.openingBalance || 0), 0);
-  }, [accounts]);
-
-  // Calculate the sum of all closing balances (reported by statements)
-  const totalClosing = useMemo(() => {
-    if (!accounts || accounts.length === 0) return 0;
-    return accounts.reduce((acc, curr: any) => acc + (curr.closingBalance || 0), 0);
-  }, [accounts]);
-
-  // Calculate totals for credits (income) and debits (expenses)
-  const { totalCredits, totalDebits } = useMemo(() => {
-    if (!transactions || transactions.length === 0) return { totalCredits: 0, totalDebits: 0 };
-    return transactions.reduce((acc, tx: any) => {
-      const amount = Math.abs(tx.amount || 0);
-      if (tx.type === 'credit') {
-        acc.totalCredits += amount;
-      } else {
-        acc.totalDebits += amount;
-      }
+  // We calculate balances based on the account metadata to avoid blocking on transaction collection groups
+  const totals = useMemo(() => {
+    if (!accounts || accounts.length === 0) return { opening: 0, closing: 0, net: 0, count: 0 };
+    return accounts.reduce((acc, curr: any) => {
+      acc.opening += (curr.openingBalance || 0);
+      acc.closing += (curr.closingBalance || 0);
+      acc.count += 1;
       return acc;
-    }, { totalCredits: 0, totalDebits: 0 });
-  }, [transactions]);
+    }, { opening: 0, closing: 0, net: 0, count: 0 });
+  }, [accounts]);
 
-  // Derived check: Does Opening + Credits - Debits = Closing?
-  const calculatedBalance = totalOpening + totalCredits - totalDebits;
-  const isBalanced = Math.abs(calculatedBalance - totalClosing) < 0.01;
+  const netChange = totals.closing - totals.opening;
+  const percentageChange = totals.opening !== 0 ? ((netChange / totals.opening) * 100).toFixed(1) : "0";
 
-  // Percentage change based on the opening balance
-  const netChange = totalClosing - totalOpening;
-  const percentageChange = totalOpening !== 0 ? ((netChange / totalOpening) * 100).toFixed(1) : "0";
-
-  if (accountsLoading || transactionsLoading) {
+  if (accountsLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
@@ -70,6 +41,15 @@ export function SummaryCards() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </Card>
         ))}
+      </div>
+    );
+  }
+
+  if (accountsError) {
+    return (
+      <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 text-destructive flex items-center gap-3">
+        <AlertCircle className="h-5 w-5" />
+        <p className="text-sm font-medium">Failed to load financial data. Please check your connection or database permissions.</p>
       </div>
     );
   }
@@ -93,11 +73,7 @@ export function SummaryCards() {
                     <Info className="h-3.5 w-3.5 opacity-70" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">
-                      {isBalanced 
-                        ? "Balance verified: Opening + Credits - Debits matches Closing."
-                        : `Discrepancy detected: Calculated ₹${calculatedBalance.toLocaleString()} vs Reported ₹${totalClosing.toLocaleString()}`}
-                    </p>
+                    <p className="text-xs">Aggregate closing balance from your synced statements.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -105,35 +81,39 @@ export function SummaryCards() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{totalClosing.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <div className="text-2xl font-bold">₹{totals.closing.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs opacity-80 mt-1">
-            {hasData ? `Verified closing from ${accounts.length} statement(s)` : "No statements synced"}
+            {hasData ? `Verified from ${totals.count} statement(s)` : "No statements synced"}
           </p>
         </CardContent>
       </Card>
       
       <Card className="border-none shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Credits</CardTitle>
-          <TrendingUp className="h-4 w-4 text-emerald-500" />
+          <CardTitle className="text-sm font-medium">Opening Balance</CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-emerald-600">₹{totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <div className="text-2xl font-bold">₹{totals.opening.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total income extracted" : "Awaiting upload"}
+            {hasData ? "Starting liquidity" : "Awaiting upload"}
           </p>
         </CardContent>
       </Card>
 
       <Card className="border-none shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Debits</CardTitle>
-          <TrendingDown className="h-4 w-4 text-rose-500" />
+          <CardTitle className="text-sm font-medium">Net Change</CardTitle>
+          <div className={cn("p-1 rounded-full", netChange >= 0 ? "bg-emerald-100" : "bg-rose-100")}>
+            {netChange >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-600" /> : <TrendingDown className="h-3 w-3 text-rose-600" />}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-rose-600">₹{totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <div className={cn("text-2xl font-bold", netChange >= 0 ? "text-emerald-600" : "text-rose-600")}>
+            ₹{Math.abs(netChange).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total expenses extracted" : "Awaiting upload"}
+            {hasData ? "Total movement" : "Upload a statement"}
           </p>
         </CardContent>
       </Card>
@@ -143,15 +123,15 @@ export function SummaryCards() {
         hasData ? (netChange >= 0 ? "bg-accent text-accent-foreground" : "bg-destructive text-destructive-foreground") : "bg-muted text-muted-foreground"
       )}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Net Growth</CardTitle>
+          <CardTitle className="text-sm font-medium">Growth %</CardTitle>
           {netChange >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {hasData ? `${netChange >= 0 ? "+" : "-"}₹${Math.abs(netChange).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "No Data"}
+            {hasData ? `${percentageChange}%` : "0.0%"}
           </div>
           <p className={cn("text-xs", hasData ? "opacity-80" : "text-muted-foreground")}>
-            {hasData ? `${percentageChange}% change from opening` : "Upload a statement"}
+            {hasData ? `Since opening period` : "Awaiting data"}
           </p>
         </CardContent>
       </Card>

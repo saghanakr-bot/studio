@@ -19,10 +19,13 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
   useEffect(() => {
     if (!query) {
       setLoading(false);
+      setError(null);
       return;
     }
 
     setLoading(true);
+    setError(null);
+
     const unsubscribe = onSnapshot(
       query,
       (snapshot: QuerySnapshot<T>) => {
@@ -34,6 +37,7 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         setLoading(false);
       },
       async (err) => {
+        console.error("Firestore useCollection Error:", err);
         const permissionError = new FirestorePermissionError({
           path: (query as any)._path?.relativeName || 'collection',
           operation: 'list',
