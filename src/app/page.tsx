@@ -1,7 +1,7 @@
-
 "use client";
 
 import { SummaryCards } from "@/components/dashboard/summary-cards";
+import { BusinessHealthScore } from "@/components/dashboard/business-health-score";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <SummaryCards />
+      <div className="grid gap-6 md:grid-cols-2">
+        <SummaryCards />
+        <BusinessHealthScore />
+      </div>
 
       <div className="grid gap-6 md:grid-cols-1">
         <Card className="border-none shadow-sm">
