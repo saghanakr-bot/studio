@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useFirestore } from "@/firebase";
-import { collection, doc, writeBatch } from "firebase/firestore";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -96,7 +96,6 @@ export default function UploadPage() {
     }
     
     setIsSyncing(true);
-    const batch = writeBatch(db);
     
     // Create a new account entry for this statement
     const accountRef = doc(collection(db, "accounts"));
@@ -107,41 +106,40 @@ export default function UploadPage() {
       currency: results.summary.currency,
       statementPeriod: results.summary.statementPeriod || "Unknown",
       lastUpdated: new Date().toISOString(),
-      userId: "demo-user" // Using a fixed ID since login is removed
+      userId: "demo-user"
     };
     
-    batch.set(accountRef, accountData);
-
-    // Add all transactions to this account
-    results.categorizedTransactions.forEach((tx) => {
-      const txRef = doc(collection(db, "accounts", accountRef.id, "transactions"));
-      batch.set(txRef, {
-        ...tx,
-        accountId: accountRef.id,
-        userId: "demo-user"
-      });
-    });
-
-    // Initiate the write operation
-    batch.commit()
-      .then(() => {
-        toast({
-          title: "Sync Successful",
-          description: "Your dashboard has been updated with the latest statement data.",
-        });
-        router.push("/");
-      })
+    // Fire off account creation (non-blocking)
+    setDoc(accountRef, accountData)
       .catch(async (e: any) => {
         const permissionError = new FirestorePermissionError({
           path: `accounts/${accountRef.id}`,
-          operation: 'write',
+          operation: 'create',
           requestResourceData: accountData,
         });
         errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsSyncing(false);
       });
+
+    // Fire off all transactions (non-blocking)
+    results.categorizedTransactions.forEach((tx) => {
+      const txRef = doc(collection(db, "accounts", accountRef.id, "transactions"));
+      const txData = {
+        ...tx,
+        accountId: accountRef.id,
+        userId: "demo-user"
+      };
+      setDoc(txRef, txData).catch(async (e) => {
+        // Individual transaction errors handled silently or logged
+      });
+    });
+
+    // Provide instant feedback and redirect
+    toast({
+      title: "Syncing Started",
+      description: "Redirecting to dashboard. Your data will appear momentarily.",
+    });
+    
+    router.push("/");
   };
 
   const getFileIcon = () => {
