@@ -6,14 +6,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, CheckCircle2, Loader2, Sparkles, TrendingUp, TrendingDown, Wallet, Image as ImageIcon, File } from "lucide-react";
+import { 
+  Upload, 
+  FileText, 
+  CheckCircle2, 
+  Loader2, 
+  Sparkles, 
+  TrendingUp, 
+  TrendingDown, 
+  Wallet, 
+  Image as ImageIcon, 
+  File,
+  LogIn
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { categorizeTransactions, AICategorizationOutput } from "@/ai/flows/ai-transaction-categorization";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-import { useFirestore, useUser } from "@/firebase";
+import { useFirestore, useUser, useAuth } from "@/firebase";
 import { collection, doc, writeBatch } from "firebase/firestore";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -25,7 +38,8 @@ export default function UploadPage() {
   const [results, setResults] = useState<AICategorizationOutput | null>(null);
   const { toast } = useToast();
   const db = useFirestore();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
+  const auth = useAuth();
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,6 +65,19 @@ export default function UploadPage() {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleSignIn = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Sign in failed",
+        description: error.message,
+      });
+    }
   };
 
   const processFile = async () => {
@@ -80,7 +107,7 @@ export default function UploadPage() {
       toast({
         variant: "destructive",
         title: "Sync failed",
-        description: "Missing data or user session. Please try again.",
+        description: !user ? "You must be signed in to sync data." : "Missing statement data. Please process a file first.",
       });
       return;
     }
@@ -119,7 +146,6 @@ export default function UploadPage() {
           title: "Sync Successful",
           description: "Your dashboard has been updated with the latest statement data.",
         });
-        // Redirect to dashboard
         router.push("/");
       })
       .catch(async (e: any) => {
@@ -232,9 +258,16 @@ export default function UploadPage() {
 
               <div className="pt-6 flex justify-end gap-3">
                 <Button variant="outline" onClick={() => { setResults(null); setFile(null); }}>Clear</Button>
-                <Button className="bg-primary" disabled={isSyncing} onClick={syncToDashboard}>
-                  {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Syncing...</> : "Confirm & Sync to Dashboard"}
-                </Button>
+                
+                {user ? (
+                  <Button className="bg-primary" disabled={isSyncing} onClick={syncToDashboard}>
+                    {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Syncing...</> : "Confirm & Sync to Dashboard"}
+                  </Button>
+                ) : (
+                  <Button className="bg-accent text-accent-foreground" onClick={handleSignIn}>
+                    <LogIn className="h-4 w-4 mr-2" /> Sign in to Sync Data
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -9,7 +9,8 @@ import {
   PieChart, 
   Settings,
   Wallet,
-  LogOut
+  LogOut,
+  LogIn
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,6 +27,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser, useAuth } from "@/firebase";
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -36,6 +40,42 @@ const items = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, loading } = useUser();
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const handleSignIn = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      toast({
+        title: "Signed in successfully",
+        description: "Welcome back to Payplanr!",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Sign in failed",
+        description: error.message,
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Signed out",
+        description: "See you soon!",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Sign out failed",
+        description: error.message,
+      });
+    }
+  };
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -72,24 +112,43 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-white/10">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton className="h-12 w-full justify-start gap-3">
-              <Avatar className="h-8 w-8 border border-white/20">
-                <AvatarImage src="https://picsum.photos/seed/payplanr-user/100/100" />
-                <AvatarFallback className="bg-accent text-accent-foreground text-xs">JD</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col text-left group-data-[collapsible=icon]:hidden">
-                <span className="text-sm font-medium">Jane Doe</span>
-                <span className="text-xs text-white/50">Admin</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton className="w-full justify-start gap-3 hover:bg-destructive/10 hover:text-destructive">
-              <LogOut className="w-5 h-5" />
-              <span className="group-data-[collapsible=icon]:hidden">Sign Out</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {user ? (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-12 w-full justify-start gap-3">
+                  <Avatar className="h-8 w-8 border border-white/20">
+                    <AvatarImage src={user.photoURL || ""} />
+                    <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                      {user.displayName?.substring(0, 2).toUpperCase() || "JD"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col text-left group-data-[collapsible=icon]:hidden">
+                    <span className="text-sm font-medium truncate max-w-[120px]">{user.displayName || "User"}</span>
+                    <span className="text-xs text-white/50">Admin</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={handleSignOut}
+                  className="w-full justify-start gap-3 hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="group-data-[collapsible=icon]:hidden">Sign Out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          ) : (
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={handleSignIn}
+                className="w-full justify-start gap-3 bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                <LogIn className="w-5 h-5" />
+                <span className="group-data-[collapsible=icon]:hidden">Sign In with Google</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
