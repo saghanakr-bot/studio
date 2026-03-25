@@ -11,19 +11,26 @@ import {
   Inbox,
   ArrowRight,
   ShieldAlert,
-  Clock
+  Clock,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
-import { collectionGroup, query, where, orderBy, collection } from "firebase/firestore";
+import { collectionGroup, query, where, orderBy, collection, doc, runTransaction } from "firebase/firestore";
 import { useMemo, useState } from "react";
 import { Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NegotiationCard } from "./negotiation-card";
 import { startOfDay, differenceInDays } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export function SmartPrioritization() {
   const db = useFirestore();
+  const { toast } = useToast();
   const [activeNegotiation, setActiveNegotiation] = useState<Transaction | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   // 1. Get current balance from all accounts
   const accountsQuery = useMemo(() => {
@@ -103,6 +110,60 @@ export function SmartPrioritization() {
     }).sort((a, b) => b.priorityScore - a.priorityScore);
   }, [pendingBills, currentBalance]);
 
+  const handlePayNow = async (bill: any) => {
+    if (!db || processingId || !bill.accountId) return;
+    
+    setProcessingId(bill.id);
+
+    const accountRef = doc(db, "accounts", bill.accountId);
+    const txRef = doc(db, "accounts", bill.accountId, "transactions", bill.id);
+
+    try {
+      await runTransaction(db, async (txn) => {
+        const accountDoc = await txn.get(accountRef);
+        if (!accountDoc.exists()) {
+          throw new Error("Source account does not exist.");
+        }
+
+        const currentAccBalance = Number(accountDoc.data().closingBalance || 0);
+        const amount = Number(bill.amount || 0);
+        const newBalance = currentAccBalance + amount; // amount is negative for bills
+
+        txn.update(txRef, { 
+          status: "cleared", 
+          clearedAt: new Date().toISOString() 
+        });
+        
+        txn.update(accountRef, { 
+          closingBalance: newBalance,
+          lastUpdated: new Date().toISOString()
+        });
+
+        return newBalance;
+      });
+
+      toast({
+        title: "Payment Successful",
+        description: `Successfully paid ${bill.description}. Account balance updated.`,
+      });
+    } catch (err: any) {
+      console.error("Payment Error:", err);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: txRef.path,
+        operation: 'update',
+        requestResourceData: { status: 'cleared' }
+      }));
+      
+      toast({
+        variant: "destructive",
+        title: "Payment Failed",
+        description: err.message || "Failed to process payment. Please try again.",
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   if (loading) return (
     <div className="grid grid-cols-1 gap-4">
       {[1, 2, 3].map(i => (
@@ -167,9 +228,19 @@ export function SmartPrioritization() {
                   </div>
                   
                   {bill.isFeasible ? (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold border border-emerald-100">
-                      <Check size={12} /> Pay Now
-                    </div>
+                    <Button 
+                      size="sm"
+                      className="h-8 px-4 text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white uppercase transition-all gap-2 rounded-full"
+                      onClick={() => handlePayNow(bill)}
+                      disabled={processingId === bill.id}
+                    >
+                      {processingId === bill.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Check size={12} />
+                      )}
+                      Pay Now
+                    </Button>
                   ) : (
                     <Button 
                       variant="outline" 
