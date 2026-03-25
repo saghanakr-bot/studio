@@ -9,7 +9,8 @@ import {
   Wallet,
   Settings,
   RefreshCw,
-  Loader2
+  Loader2,
+  Database
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -30,6 +31,7 @@ import { useFirestore } from "@/firebase";
 import { collection, getDocs, deleteDoc, doc, collectionGroup } from "firebase/firestore";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { seedDemoData } from "@/lib/db-seed";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -55,18 +57,39 @@ export function AppSidebar() {
   const db = useFirestore();
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeedData = async () => {
+    if (!db) return;
+    setIsSeeding(true);
+    try {
+      await seedDemoData(db);
+      toast({
+        title: "Demo Data Seeded",
+        description: "Your dashboard is now populated with sample records.",
+      });
+      router.refresh();
+    } catch (error) {
+      console.error("Seed Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Seed Failed",
+        description: "Check your console for Firebase permission errors.",
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   const handleResetData = async () => {
     if (!db) return;
     setIsResetting(true);
     
     try {
-      // 1. Delete all transactions (subcollections via collectionGroup)
       const txSnapshot = await getDocs(collectionGroup(db, "transactions"));
       const txDeletes = txSnapshot.docs.map(d => deleteDoc(d.ref));
       await Promise.all(txDeletes);
 
-      // 2. Delete all accounts
       const accountsSnapshot = await getDocs(collection(db, "accounts"));
       const accountDeletes = accountsSnapshot.docs.map(d => deleteDoc(d.ref));
       await Promise.all(accountDeletes);
@@ -123,8 +146,19 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-white/10">
+      <SidebarFooter className="p-4 border-t border-white/10 space-y-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={handleSeedData}
+              disabled={isSeeding}
+              className="h-10 w-full justify-start gap-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+            >
+              {isSeeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Database className="w-5 h-5" />}
+              <span className="group-data-[collapsible=icon]:hidden">Seed Demo Data</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
           <SidebarMenuItem>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -161,13 +195,6 @@ export function AppSidebar() {
                 <span className="text-sm font-medium">Demo User</span>
                 <span className="text-xs text-white/50">Admin</span>
               </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          
-          <SidebarMenuItem>
-            <SidebarMenuButton className="w-full justify-start gap-3 opacity-60 cursor-not-allowed">
-              <Settings className="w-5 h-5" />
-              <span className="group-data-[collapsible=icon]:hidden">Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
