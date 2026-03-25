@@ -38,7 +38,6 @@ export async function extractInvoice(input: ExtractInvoiceInput): Promise<Extrac
 
 const extractInvoicePrompt = ai.definePrompt({
   name: 'extractInvoicePrompt',
-  model: 'googleai/gemini-1.5-flash',
   input: { schema: ExtractInvoiceInputSchema },
   output: { schema: ExtractInvoiceOutputSchema },
   config: {
@@ -68,6 +67,7 @@ const extractInvoiceFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await extractInvoicePrompt(input);
-    return output!;
+    if (!output) throw new Error('AI failed to generate a response. Please try again.');
+    return output;
   }
 );

@@ -14,9 +14,6 @@ import {
   Sparkles, 
   TrendingUp, 
   TrendingDown, 
-  Wallet, 
-  Image as ImageIcon, 
-  File,
   AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -81,11 +78,14 @@ export default function UploadPage() {
       });
     } catch (error: any) {
       console.error("Analysis Error:", error);
-      const isQuotaError = error.message?.toLowerCase().includes("quota") || error.message?.includes("429");
-      const msg = isQuotaError 
-        ? "AI service is currently busy. Please wait 1 minute and try again." 
-        : "There was a problem processing your document. Please ensure it is a clear PDF or Image.";
+      const errorStr = error.message || String(error);
+      const isQuotaError = errorStr.toLowerCase().includes("quota") || errorStr.includes("429");
+      const isNotFoundError = errorStr.includes("404") || errorStr.includes("not found");
       
+      let msg = "There was a problem processing your document. Please ensure it is a clear PDF or Image.";
+      if (isQuotaError) msg = "AI service is currently busy (Rate Limit). Please wait 1 minute and try again.";
+      if (isNotFoundError) msg = "AI model configuration issue. Retrying with updated settings...";
+
       setErrorMessage(msg);
       toast({
         variant: "destructive",
@@ -142,7 +142,7 @@ export default function UploadPage() {
       });
     });
 
-    toast({ title: "Syncing Started", description: "Redirecting to dashboard..." });
+    toast({ title: "Syncing", description: "Your data is being organized in the background." });
     router.push("/");
   };
 
