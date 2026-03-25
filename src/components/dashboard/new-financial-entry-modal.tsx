@@ -56,18 +56,22 @@ export function NewFinancialEntryModal({ trigger }: NewFinancialEntryModalProps)
 
             <div className="grid grid-cols-2 gap-4">
               {/* Scan Income */}
-              <button className="flex flex-col items-center justify-center p-5 rounded-xl border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50 transition-colors text-center">
-                <TrendingUp size={24} className="text-emerald-500 mb-2" />
-                <h3 className="font-bold text-emerald-700 text-sm">Scan Income</h3>
-                <p className="text-[9px] uppercase tracking-wider font-semibold text-emerald-600/60 mt-0.5">Customer Invoice</p>
-              </button>
+              <Link href="/scan?type=income" className="block">
+                <button className="w-full flex flex-col items-center justify-center p-5 rounded-xl border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50 transition-colors text-center h-full">
+                  <TrendingUp size={24} className="text-emerald-500 mb-2" />
+                  <h3 className="font-bold text-emerald-700 text-sm">Scan Income</h3>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold text-emerald-600/60 mt-0.5">Customer Invoice</p>
+                </button>
+              </Link>
 
               {/* Scan Bill */}
-              <button className="flex flex-col items-center justify-center p-5 rounded-xl border border-rose-100 bg-rose-50/20 hover:bg-rose-50 transition-colors text-center">
-                <TrendingDown size={24} className="text-rose-500 mb-2" />
-                <h3 className="font-bold text-rose-700 text-sm">Scan Bill</h3>
-                <p className="text-[9px] uppercase tracking-wider font-semibold text-rose-600/60 mt-0.5">Supplier Invoice</p>
-              </button>
+              <Link href="/scan?type=bill" className="block">
+                <button className="w-full flex flex-col items-center justify-center p-5 rounded-xl border border-rose-100 bg-rose-50/20 hover:bg-rose-50 transition-colors text-center h-full">
+                  <TrendingDown size={24} className="text-rose-500 mb-2" />
+                  <h3 className="font-bold text-rose-700 text-sm">Scan Bill</h3>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold text-rose-600/60 mt-0.5">Supplier Invoice</p>
+                </button>
+              </Link>
             </div>
 
             <div className="relative py-4 flex items-center justify-center">
@@ -79,13 +83,13 @@ export function NewFinancialEntryModal({ trigger }: NewFinancialEntryModalProps)
 
             <div className="grid grid-cols-2 gap-4">
               {/* Manual Transaction */}
-              <button className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent">
+              <button className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent cursor-not-allowed opacity-50">
                 <Keyboard size={18} className="text-slate-500" />
                 <span className="font-semibold text-slate-700 text-sm">Transaction</span>
               </button>
 
               {/* Manual Bank Balance */}
-              <button className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent">
+              <button className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent cursor-not-allowed opacity-50">
                 <Wallet size={18} className="text-slate-500" />
                 <span className="font-semibold text-slate-700 text-sm">Bank Balance</span>
               </button>
