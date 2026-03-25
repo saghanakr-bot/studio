@@ -78,8 +78,8 @@ export default function ManualTransactionPage() {
           currency: "INR",
           lastUpdated: new Date().toISOString(),
         };
-        // Initiate creation (non-blocking as per guidelines)
-        setDoc(newAccountRef, defaultAccount).catch(e => {
+        // Use await here to ensure account exists before transaction sub-ref is used
+        await setDoc(newAccountRef, defaultAccount).catch(e => {
           errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: newAccountRef.path,
             operation: 'create',
@@ -98,7 +98,7 @@ export default function ManualTransactionPage() {
         amount: txAmount,
         type: type === "income" ? "credit" : "debit",
         category,
-        accountId: accountId,
+        accountId: accountId, // Crucial for collectionGroup queries
         status: "pending",
         relationshipType,
         contactInfo: { email, phone },

@@ -7,10 +7,12 @@ import {
   TrendingUp, 
   PieChart, 
   Wallet,
-  Settings
+  Settings,
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +26,21 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useFirestore } from "@/firebase";
+import { collection, getDocs, deleteDoc, doc, collectionGroup } from "firebase/firestore";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -34,6 +51,44 @@ const items = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const db = useFirestore();
+  const { toast } = useToast();
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetData = async () => {
+    if (!db) return;
+    setIsResetting(true);
+    
+    try {
+      // 1. Delete all transactions (subcollections via collectionGroup)
+      const txSnapshot = await getDocs(collectionGroup(db, "transactions"));
+      const txDeletes = txSnapshot.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(txDeletes);
+
+      // 2. Delete all accounts
+      const accountsSnapshot = await getDocs(collection(db, "accounts"));
+      const accountDeletes = accountsSnapshot.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(accountDeletes);
+
+      toast({
+        title: "Account Reset",
+        description: "All financial data has been wiped successfully.",
+      });
+      
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Reset Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: "Could not clear data. Please try again.",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -71,6 +126,31 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-white/10">
         <SidebarMenu>
           <SidebarMenuItem>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <SidebarMenuButton className="h-10 w-full justify-start gap-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10">
+                  {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                  <span className="group-data-[collapsible=icon]:hidden">Reset Account</span>
+                </SidebarMenuButton>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete all your synced accounts, statements, and pending transactions. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetData} className="bg-destructive hover:bg-destructive/90">
+                    Wipe Data
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </SidebarMenuItem>
+          
+          <SidebarMenuItem>
             <SidebarMenuButton className="h-12 w-full justify-start gap-3">
               <Avatar className="h-8 w-8 border border-white/20">
                 <AvatarFallback className="bg-accent text-accent-foreground text-xs">
@@ -83,6 +163,7 @@ export function AppSidebar() {
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          
           <SidebarMenuItem>
             <SidebarMenuButton className="w-full justify-start gap-3 opacity-60 cursor-not-allowed">
               <Settings className="w-5 h-5" />
