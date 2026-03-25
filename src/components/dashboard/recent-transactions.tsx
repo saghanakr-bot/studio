@@ -1,14 +1,54 @@
+
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockTransactions } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useFirestore, useCollection, useUser } from "@/firebase";
+import { collectionGroup, query, where, orderBy, limit } from "firebase/firestore";
+import { useMemo } from "react";
+import { Loader2, Inbox } from "lucide-react";
 
 export function RecentTransactions() {
+  const db = useFirestore();
+  const { user } = useUser();
+
+  const transactionsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    // We use collectionGroup to find all "transactions" sub-collections belonging to this user
+    return query(
+      collectionGroup(db, "transactions"),
+      where("userId", "==", user.uid),
+      orderBy("date", "desc"),
+      limit(5)
+    );
+  }, [db, user]);
+
+  const { data: transactions, loading } = useCollection(transactionsQuery);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!transactions || transactions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="bg-muted p-3 rounded-full mb-3">
+          <Inbox className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">No Transactions Found</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Upload a statement to see recent activity here.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {mockTransactions.map((transaction) => (
+      {transactions.map((transaction: any) => (
         <div key={transaction.id} className="flex items-center">
           <Avatar className="h-9 w-9">
             <AvatarFallback className={cn(
@@ -31,9 +71,9 @@ export function RecentTransactions() {
           </div>
           <div className={cn(
             "ml-auto font-semibold text-sm",
-            transaction.amount > 0 ? "text-emerald-600" : "text-foreground"
+            transaction.type === 'credit' ? "text-emerald-600" : "text-foreground"
           )}>
-            {transaction.amount > 0 ? "+" : ""}₹{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {transaction.type === 'credit' ? "+" : "-"}₹{Math.abs(transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
       ))}
