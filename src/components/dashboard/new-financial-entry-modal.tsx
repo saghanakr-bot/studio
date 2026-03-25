@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -83,16 +82,20 @@ export function NewFinancialEntryModal({ trigger }: NewFinancialEntryModalProps)
 
             <div className="grid grid-cols-2 gap-4">
               {/* Manual Transaction */}
-              <button className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent cursor-not-allowed opacity-50">
-                <Keyboard size={18} className="text-slate-500" />
-                <span className="font-semibold text-slate-700 text-sm">Transaction</span>
-              </button>
+              <Link href="/manual/transaction" className="block">
+                <button className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200">
+                  <Keyboard size={18} className="text-slate-500" />
+                  <span className="font-semibold text-slate-700 text-sm">Transaction</span>
+                </button>
+              </Link>
 
               {/* Manual Bank Balance */}
-              <button className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent cursor-not-allowed opacity-50">
-                <Wallet size={18} className="text-slate-500" />
-                <span className="font-semibold text-slate-700 text-sm">Bank Balance</span>
-              </button>
+              <Link href="/manual/balance" className="block">
+                <button className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200">
+                  <Wallet size={18} className="text-slate-500" />
+                  <span className="font-semibold text-slate-700 text-sm">Bank Balance</span>
+                </button>
+              </Link>
             </div>
           </div>
         </div>
