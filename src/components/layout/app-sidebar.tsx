@@ -9,7 +9,7 @@ import {
   CalendarDays,
   Zap,
   History,
-  Calculator
+  Receipt
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -46,7 +46,7 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Reminders", url: "/reminders", icon: CalendarDays },
   { title: "Strategy & Decision", url: "/decision", icon: Zap },
-  { title: "Expense Calculator", url: "/expenses", icon: Calculator },
+  { title: "Expense Tracker", url: "/expenses", icon: Receipt },
   { title: "Transaction History", url: "/history", icon: History },
 ];
 

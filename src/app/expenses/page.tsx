@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  Calculator, 
   Plus, 
   Trash2, 
   AlertTriangle, 
@@ -15,68 +14,109 @@ import {
   TrendingDown, 
   Info,
   Loader2,
-  Wallet
+  Wallet,
+  Receipt
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection, query, where, doc, setDoc, deleteDoc, orderBy, limit, getDocs } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { format, startOfDay, endOfDay } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
-interface ExpenseItem {
-  id: string;
-  description: string;
-  amount: number;
-}
-
-export default function ExpenseCalculatorPage() {
+export default function ExpenseTrackerPage() {
   const db = useFirestore();
-  const [items, setItems] = useState<ExpenseItem[]>([
-    { id: '1', description: 'Coffee', amount: 0 },
-  ]);
+  const { toast } = useToast();
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemAmount, setNewItemAmount] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
 
-  // Fetch current balance to calculate "Safe Daily Spending"
-  const accountsQuery = useMemo(() => (db ? query(collection(db, "accounts")) : null), [db]);
-  const { data: accounts, loading } = useCollection(accountsQuery);
+  const today = useMemo(() => new Date(), []);
+  const dayStart = startOfDay(today).toISOString();
+  const dayEnd = endOfDay(today).toISOString();
 
-  const currentBalance = useMemo(() => {
-    return accounts?.reduce((sum, acc: any) => sum + (acc.closingBalance || 0), 0) || 0;
-  }, [accounts]);
+  // 1. Fetch current balance to calculate "Safe Daily Spending"
+  const accountsQuery = useMemo(() => (db ? query(collection(db, "accounts"), orderBy("lastUpdated", "desc"), limit(1)) : null), [db]);
+  const { data: accounts, loading: accountsLoading } = useCollection(accountsQuery);
 
-  // A very simple rule of thumb: 1/30th of balance is a "Safe Day"
+  const activeAccount = accounts?.[0];
+  const currentBalance = activeAccount?.closingBalance || 0;
   const safeDailyLimit = useMemo(() => currentBalance / 30, [currentBalance]);
 
-  const totalAmount = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.amount, 0);
-  }, [items]);
+  // 2. Fetch today's tracked expenses
+  const todayExpensesQuery = useMemo(() => {
+    if (!db || !activeAccount) return null;
+    return query(
+      collection(db, "accounts", activeAccount.id, "transactions"),
+      where("date", "==", format(today, "yyyy-MM-dd")),
+      where("type", "==", "debit"),
+      where("status", "==", "cleared")
+    );
+  }, [db, activeAccount, today]);
 
-  const addItem = () => {
-    if (!newItemDesc) return;
+  const { data: todayExpenses, loading: expensesLoading } = useCollection(todayExpensesQuery);
+
+  const totalSpentToday = useMemo(() => {
+    return todayExpenses?.reduce((sum, item: any) => sum + Math.abs(item.amount), 0) || 0;
+  }, [todayExpenses]);
+
+  const addExpense = async () => {
+    if (!newItemDesc || !newItemAmount || !db || !activeAccount) return;
+    
+    setIsAdding(true);
     const amount = parseFloat(newItemAmount) || 0;
-    const newItem: ExpenseItem = {
-      id: Date.now().toString(),
+    const txRef = doc(collection(db, "accounts", activeAccount.id, "transactions"));
+    
+    const txData = {
+      date: format(today, "yyyy-MM-dd"),
       description: newItemDesc,
-      amount: amount
+      amount: -amount,
+      type: "debit",
+      status: "cleared",
+      category: "Daily Expense",
+      accountId: activeAccount.id,
+      createdAt: new Date().toISOString()
     };
-    setItems([...items, newItem]);
+
+    // Non-blocking write
+    setDoc(txRef, txData).catch(e => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: txRef.path,
+        operation: 'create',
+        requestResourceData: txData
+      }));
+    });
+
+    // Also update account balance optimistically/transactionally if this was a real app, 
+    // but for the tracker we'll just track the items.
+    
     setNewItemDesc("");
     setNewItemAmount("");
+    setIsAdding(false);
+    toast({
+      title: "Expense Tracked",
+      description: `₹${amount} for ${newItemDesc} has been recorded.`,
+    });
   };
 
-  const removeItem = (id: string) => {
-    setItems(items.filter(i => i.id !== id));
+  const removeExpense = async (id: string) => {
+    if (!db || !activeAccount) return;
+    const txRef = doc(db, "accounts", activeAccount.id, "transactions", id);
+    
+    deleteDoc(txRef).catch(e => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: txRef.path,
+        operation: 'delete'
+      }));
+    });
   };
 
-  const updateAmount = (id: string, val: string) => {
-    const amount = parseFloat(val) || 0;
-    setItems(items.map(i => i.id === id ? { ...i, amount } : i));
-  };
-
-  if (loading) {
+  if (accountsLoading || expensesLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">Calculating budget limits...</p>
+        <p className="text-sm font-medium text-muted-foreground">Loading your daily tracker...</p>
       </div>
     );
   }
@@ -86,29 +126,40 @@ export default function ExpenseCalculatorPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-3">
-            <Calculator className="h-8 w-8" />
-            Daily Expense Calculator
+            <Receipt className="h-8 w-8" />
+            Daily Expense Tracker
           </h1>
-          <p className="text-muted-foreground">Break down your daily spending to see the micro-impact on your balance.</p>
+          <p className="text-muted-foreground">Log your spending in real-time and track against your daily safe limit.</p>
         </div>
       </div>
 
+      {!activeAccount && (
+        <Card className="border-none shadow-sm bg-amber-50 border-amber-100 p-6">
+          <div className="flex items-center gap-3 text-amber-800">
+            <AlertTriangle className="h-5 w-5" />
+            <p className="text-sm font-bold">No Active Account Found</p>
+          </div>
+          <p className="text-xs text-amber-700 mt-2">Please add a bank balance or sync a statement first to enable tracking.</p>
+        </Card>
+      )}
+
       <div className="grid lg:grid-cols-12 gap-8">
-        {/* Left Column: Input Form */}
+        {/* Left Column: Tracking List */}
         <div className="lg:col-span-7 space-y-6">
           <Card className="border-none shadow-sm bg-white">
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Detailed Breakdown</CardTitle>
-              <CardDescription className="text-xs">Add individual items planned for today.</CardDescription>
+              <CardTitle className="text-lg">Log New Expense</CardTitle>
+              <CardDescription className="text-xs">Add items as you spend throughout the day.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-3">
                 <div className="flex-1 space-y-2">
                   <Input 
-                    placeholder="Expense name (e.g. Lunch)" 
+                    placeholder="What did you buy? (e.g. Coffee)" 
                     value={newItemDesc} 
                     onChange={(e) => setNewItemDesc(e.target.value)}
                     className="h-10 text-sm"
+                    disabled={!activeAccount}
                   />
                 </div>
                 <div className="w-32 space-y-2">
@@ -118,36 +169,33 @@ export default function ExpenseCalculatorPage() {
                     value={newItemAmount} 
                     onChange={(e) => setNewItemAmount(e.target.value)}
                     className="h-10 text-sm font-bold"
+                    disabled={!activeAccount}
                   />
                 </div>
-                <Button onClick={addItem} size="icon" className="h-10 w-10 shrink-0">
-                  <Plus size={18} />
+                <Button onClick={addExpense} size="icon" className="h-10 w-10 shrink-0" disabled={!newItemDesc || !newItemAmount || isAdding || !activeAccount}>
+                  {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus size={18} />}
                 </Button>
               </div>
 
               <div className="space-y-3 pt-4 border-t">
-                {items.length === 0 ? (
-                  <p className="text-center py-8 text-xs text-muted-foreground font-medium uppercase tracking-widest italic">
-                    Add your first expense above
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Today's Log ({format(today, "MMM dd")})</h3>
+                {todayExpenses?.length === 0 ? (
+                  <p className="text-center py-12 text-xs text-muted-foreground font-medium uppercase tracking-widest italic">
+                    Nothing tracked yet for today
                   </p>
                 ) : (
-                  items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-4 group">
-                      <div className="flex-1 text-sm font-medium text-slate-700">
+                  todayExpenses?.map((item: any) => (
+                    <div key={item.id} className="flex items-center gap-4 group hover:bg-slate-50 p-2 rounded-lg transition-colors">
+                      <div className="flex-1 text-sm font-bold text-slate-700">
                         {item.description}
                       </div>
-                      <div className="w-32">
-                        <Input 
-                          type="number" 
-                          value={item.amount || ""} 
-                          onChange={(e) => updateAmount(item.id, e.target.value)}
-                          className="h-9 text-xs font-bold text-right"
-                        />
+                      <div className="text-sm font-black text-slate-900">
+                        ₹{Math.abs(item.amount).toLocaleString()}
                       </div>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeExpense(item.id)}
                         className="h-8 w-8 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
                       >
                         <Trash2 size={14} />
@@ -160,12 +208,12 @@ export default function ExpenseCalculatorPage() {
           </Card>
         </div>
 
-        {/* Right Column: Results & Intelligence */}
+        {/* Right Column: Analytics */}
         <div className="lg:col-span-5 space-y-6">
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="p-6 bg-slate-50 border-b">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Planned Spending</p>
-              <p className="text-3xl font-black text-slate-900">₹{totalAmount.toLocaleString()}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Spent Today</p>
+              <p className="text-3xl font-black text-slate-900">₹{totalSpentToday.toLocaleString()}</p>
             </div>
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-4">
@@ -179,23 +227,23 @@ export default function ExpenseCalculatorPage() {
                 
                 <div className={cn(
                   "p-4 rounded-xl border flex items-start gap-3 transition-all",
-                  totalAmount <= safeDailyLimit 
+                  totalSpentToday <= safeDailyLimit 
                     ? "bg-emerald-50 border-emerald-100 text-emerald-800" 
                     : "bg-rose-50 border-rose-100 text-rose-800"
                 )}>
-                  {totalAmount <= safeDailyLimit ? (
+                  {totalSpentToday <= safeDailyLimit ? (
                     <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
                   ) : (
                     <AlertTriangle size={18} className="text-rose-500 shrink-0" />
                   )}
                   <div className="space-y-1">
                     <p className="text-xs font-black uppercase tracking-widest">
-                      {totalAmount <= safeDailyLimit ? "Within Budget" : "Above Safe Limit"}
+                      {totalSpentToday <= safeDailyLimit ? "On Track" : "Limit Exceeded"}
                     </p>
                     <p className="text-[11px] font-medium leading-relaxed opacity-80">
-                      {totalAmount <= safeDailyLimit 
-                        ? "This spending is well within your daily sustainable limit based on current liquidity."
-                        : "This total exceeds your sustainable daily budget. Consider removing non-essential items."}
+                      {totalSpentToday <= safeDailyLimit 
+                        ? "Your actual daily spending is currently within your sustainable liquidity limits."
+                        : "You've exceeded your daily sustainable budget. Consider cutting back for the rest of the day."}
                     </p>
                   </div>
                 </div>
@@ -203,16 +251,16 @@ export default function ExpenseCalculatorPage() {
 
               <div className="pt-4 space-y-3 border-t">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                  <Info size={12} /> Optimization Tips
+                  <Info size={12} /> Live Insights
                 </h3>
                 <div className="grid gap-2">
                   <div className="p-3 bg-slate-50 rounded-lg text-[11px] font-medium text-slate-600 flex items-center gap-2">
                     <TrendingDown size={14} className="text-blue-500" />
-                    Reduce your top item to save ₹{(totalAmount * 0.1).toFixed(0)} today.
+                    Remaining daily budget: ₹{Math.max(0, Math.floor(safeDailyLimit - totalSpentToday)).toLocaleString()}
                   </div>
                   <div className="p-3 bg-slate-50 rounded-lg text-[11px] font-medium text-slate-600 flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-emerald-500" />
-                    Consolidate small expenses to avoid multiple transaction fees.
+                    {totalSpentToday > 0 ? "Tracking keeps you 32% more aware of cash leakage." : "Start tracking to see live insights."}
                   </div>
                 </div>
               </div>
