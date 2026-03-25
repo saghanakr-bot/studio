@@ -4,11 +4,11 @@
 import { 
   LayoutDashboard, 
   TrendingUp, 
-  PieChart, 
   Wallet,
   RefreshCw,
   Loader2,
-  CalendarDays
+  CalendarDays,
+  ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -45,7 +45,7 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Projections", url: "/projections", icon: TrendingUp },
   { title: "Reminders", url: "/reminders", icon: CalendarDays },
-  { title: "Reports", url: "/reports", icon: PieChart },
+  { title: "Decision", url: "/decision", icon: ShieldCheck },
 ];
 
 export function AppSidebar() {
@@ -90,7 +90,7 @@ export function AppSidebar() {
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className="p-4 flex flex-row items-center gap-2 text-white">
-        <div className="bg-accent text-accent-foreground p-1.5 rounded-lg">
+        <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
           <Wallet size={24} />
         </div>
         <span className="font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
@@ -150,7 +150,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton className="h-12 w-full justify-start gap-3">
               <Avatar className="h-8 w-8 border border-white/20">
-                <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   DU
                 </AvatarFallback>
               </Avatar>
