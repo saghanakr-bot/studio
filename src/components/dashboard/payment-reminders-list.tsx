@@ -1,4 +1,3 @@
-
 "use client";
 
 import { mockReminders } from "@/lib/mock-data";
@@ -28,7 +27,7 @@ export function PaymentRemindersList({ limit }: { limit?: number }) {
               <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
                 {reminder.title}
               </p>
-              <p className="text-sm font-bold">${reminder.amount.toLocaleString()}</p>
+              <p className="text-sm font-bold">₹{reminder.amount.toLocaleString()}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground flex items-center gap-1">

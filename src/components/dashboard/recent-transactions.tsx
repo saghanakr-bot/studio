@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -34,7 +33,7 @@ export function RecentTransactions() {
             "ml-auto font-semibold text-sm",
             transaction.amount > 0 ? "text-emerald-600" : "text-foreground"
           )}>
-            {transaction.amount > 0 ? "+" : ""}{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {transaction.amount > 0 ? "+" : ""}₹{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
       ))}

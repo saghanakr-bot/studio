@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Upload, FileText, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { categorizeTransactions } from "@/ai/flows/ai-transaction-categorization";
-import { Transaction } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +28,6 @@ export default function UploadPage() {
     
     setIsProcessing(true);
     
-    // Simulate parsing the file into a structured format the AI expects
-    // In a real app, you'd use a CSV/OFX parser here
     const mockInputData = [
       { date: '2024-05-18', description: 'SaaS Platform Monthly', amount: -199.00, type: 'debit' as const, transactionId: 'tx_001' },
       { date: '2024-05-17', description: 'Apple Store - MacBook', amount: -2499.00, type: 'debit' as const, transactionId: 'tx_002' },
@@ -151,7 +147,7 @@ export default function UploadPage() {
                         "font-bold min-w-[80px] text-right",
                         tx.amount > 0 ? "text-emerald-600" : ""
                       )}>
-                        {tx.amount > 0 ? "+" : ""}{tx.amount.toFixed(2)}
+                        {tx.amount > 0 ? "+" : ""}₹{tx.amount.toFixed(2)}
                       </div>
                     </div>
                   </div>

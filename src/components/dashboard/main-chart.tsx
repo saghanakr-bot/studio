@@ -1,14 +1,10 @@
-
 "use client";
 
 import { 
   Area, 
   AreaChart, 
   CartesianGrid, 
-  XValue, 
-  YValue, 
   ResponsiveContainer, 
-  Tooltip, 
   XAxis, 
   YAxis 
 } from "recharts";
@@ -59,7 +55,7 @@ export function MainChart() {
               axisLine={false} 
               tickLine={false} 
               className="text-xs font-medium fill-muted-foreground"
-              tickFormatter={(value) => `$${value/1000}k`}
+              tickFormatter={(value) => `₹${value/1000}k`}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Area 

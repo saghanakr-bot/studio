@@ -1,8 +1,7 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Calendar } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from "lucide-react";
 import { mockBalances } from "@/lib/mock-data";
 
 export function SummaryCards() {
@@ -19,7 +18,7 @@ export function SummaryCards() {
           <Wallet className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${totalBalance.toLocaleString()}</div>
+          <div className="text-2xl font-bold">₹{totalBalance.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground">
             Across {mockBalances.length} accounts
           </p>
@@ -32,7 +31,7 @@ export function SummaryCards() {
           <ArrowUpRight className="h-4 w-4 text-emerald-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">$18,450.00</div>
+          <div className="text-2xl font-bold">₹18,450.00</div>
           <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
             <ArrowUpRight className="h-3 w-3" /> +12.5% from last month
           </p>
@@ -45,7 +44,7 @@ export function SummaryCards() {
           <ArrowDownRight className="h-4 w-4 text-rose-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">$12,120.00</div>
+          <div className="text-2xl font-bold">₹12,120.00</div>
           <p className="text-xs text-rose-500 flex items-center gap-1 mt-1">
             <ArrowDownRight className="h-3 w-3" /> +4.2% from last month
           </p>
