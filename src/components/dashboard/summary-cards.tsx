@@ -2,7 +2,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, Loader2, Info, AlertCircle } from "lucide-react";
+import { Wallet, Loader2, Info, AlertCircle, Database } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query } from "firebase/firestore";
 import { useMemo } from "react";
@@ -18,7 +18,6 @@ export function SummaryCards() {
 
   const { data: accounts, loading: accountsLoading, error: accountsError } = useCollection(accountsQuery);
 
-  // We calculate balances based on the account metadata to avoid blocking on transaction collection groups
   const totals = useMemo(() => {
     if (!accounts || accounts.length === 0) return { opening: 0, closing: 0, net: 0, count: 0 };
     return accounts.reduce((acc, curr: any) => {
@@ -41,9 +40,16 @@ export function SummaryCards() {
 
   if (accountsError) {
     return (
-      <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 text-destructive flex items-center gap-3">
-        <AlertCircle className="h-5 w-5" />
-        <p className="text-sm font-medium">Failed to load financial data. Please check your connection or database permissions.</p>
+      <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 text-destructive space-y-3">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" />
+          <p className="text-sm font-bold">Connection or Permission Error</p>
+        </div>
+        <p className="text-xs opacity-80 leading-relaxed">
+          The app couldn't reach Firestore. Please ensure you have:
+          <br />1. Created a Firestore database in your project.
+          <br />2. Published the security rules.
+        </p>
       </div>
     );
   }

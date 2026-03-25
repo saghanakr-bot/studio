@@ -1,0 +1,20 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read/write access for prototyping. 
+    // In production, these should be restricted to authenticated users.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Schema-specific rules for Accounts and Transactions
+    match /accounts/{accountId} {
+      allow read, write: if true;
+      
+      match /transactions/{transactionId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}
