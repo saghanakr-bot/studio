@@ -1,4 +1,3 @@
-
 "use client";
 
 import { PaymentCalendar } from "@/components/reminders/payment-calendar";
@@ -8,6 +7,7 @@ import { Plus, BellRing, Settings, Mail, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NewFinancialEntryModal } from "@/components/dashboard/new-financial-entry-modal";
 
 export default function RemindersPage() {
   return (
@@ -24,9 +24,13 @@ export default function RemindersPage() {
           <Button variant="outline" className="h-11 px-6">
             <Settings className="mr-2 h-4 w-4" /> Settings
           </Button>
-          <Button className="bg-primary h-11 px-6 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
-            <Plus className="mr-2 h-5 w-5" /> New Reminder
-          </Button>
+          <NewFinancialEntryModal 
+            trigger={
+              <Button className="bg-primary h-11 px-6 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+                <Plus className="mr-2 h-5 w-5" /> New Reminder
+              </Button>
+            } 
+          />
         </div>
       </div>
 
