@@ -16,7 +16,8 @@ import {
   TrendingDown, 
   Wallet, 
   Image as ImageIcon, 
-  File
+  File,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { categorizeTransactions, AICategorizationOutput } from "@/ai/flows/ai-transaction-categorization";
@@ -28,12 +29,14 @@ import { collection, doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [results, setResults] = useState<AICategorizationOutput | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
   const db = useFirestore();
   const router = useRouter();
@@ -51,6 +54,7 @@ export default function UploadPage() {
       }
       setFile(selectedFile);
       setResults(null);
+      setErrorMessage(null);
     }
   };
 
@@ -66,6 +70,7 @@ export default function UploadPage() {
   const processFile = async () => {
     if (!file) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const dataUri = await fileToDataUri(file);
       const response = await categorizeTransactions({ statementDataUri: dataUri });
@@ -74,11 +79,18 @@ export default function UploadPage() {
         title: "Analysis Complete",
         description: `Extracted balance and ${response.categorizedTransactions.length} transactions.`,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Analysis Error:", error);
+      const isQuotaError = error.message?.toLowerCase().includes("quota") || error.message?.includes("429");
+      const msg = isQuotaError 
+        ? "AI service is currently busy. Please wait 1 minute and try again." 
+        : "There was a problem processing your document. Please ensure it is a clear PDF or Image.";
+      
+      setErrorMessage(msg);
       toast({
         variant: "destructive",
-        title: "Error processing transactions",
-        description: "There was a problem with the AI analysis service.",
+        title: "Extraction failed",
+        description: msg,
       });
     } finally {
       setIsProcessing(false);
@@ -86,18 +98,9 @@ export default function UploadPage() {
   };
 
   const syncToDashboard = () => {
-    if (!results || !db) {
-      toast({
-        variant: "destructive",
-        title: "Sync failed",
-        description: "Missing statement data. Please process a file first.",
-      });
-      return;
-    }
-    
+    if (!results || !db) return;
     setIsSyncing(true);
     
-    // Create a new account entry for this statement
     const accountRef = doc(collection(db, "accounts"));
     const accountData = {
       name: file?.name || "Extracted Statement",
@@ -108,56 +111,39 @@ export default function UploadPage() {
       lastUpdated: new Date().toISOString(),
     };
     
-    // Fire off account creation (non-blocking)
-    setDoc(accountRef, accountData)
-      .catch(async (e: any) => {
-        const permissionError = new FirestorePermissionError({
-          path: `accounts/${accountRef.id}`,
-          operation: 'create',
-          requestResourceData: accountData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
+    setDoc(accountRef, accountData).catch(e => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `accounts/${accountRef.id}`,
+        operation: 'create',
+        requestResourceData: accountData,
+      }));
+    });
 
-    // Fire off all transactions (non-blocking)
     results.categorizedTransactions.forEach((tx) => {
       const txRef = doc(collection(db, "accounts", accountRef.id, "transactions"));
-      
-      const txData: any = {
-        date: tx.date,
-        description: tx.description,
-        amount: tx.amount,
-        type: tx.type,
-        category: tx.category,
+      const txData = {
+        date: tx.date || new Date().toISOString().split('T')[0],
+        description: tx.description || "Unnamed Transaction",
+        amount: tx.amount || 0,
+        type: tx.type || 'debit',
+        category: tx.category || "General",
         accountId: accountRef.id,
+        status: 'cleared',
+        transactionId: tx.transactionId || "",
+        subCategory: tx.subCategory || ""
       };
 
-      if (tx.transactionId) txData.transactionId = tx.transactionId;
-      if (tx.subCategory) txData.subCategory = tx.subCategory;
-
-      setDoc(txRef, txData).catch(async (e) => {
-        const permissionError = new FirestorePermissionError({
-          path: `accounts/${accountRef.id}/transactions/${txRef.id}`,
+      setDoc(txRef, txData).catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: txRef.path,
           operation: 'create',
           requestResourceData: txData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        }));
       });
     });
 
-    toast({
-      title: "Syncing Started",
-      description: "Redirecting to dashboard...",
-    });
-    
+    toast({ title: "Syncing Started", description: "Redirecting to dashboard..." });
     router.push("/");
-  };
-
-  const getFileIcon = () => {
-    if (!file) return <Upload className="h-8 w-8 text-primary" />;
-    if (file.type.startsWith('image/')) return <ImageIcon className="h-8 w-8 text-primary" />;
-    if (file.type === 'application/pdf') return <FileText className="h-8 w-8 text-primary" />;
-    return <File className="h-8 w-8 text-primary" />;
   };
 
   return (
@@ -168,6 +154,14 @@ export default function UploadPage() {
       </div>
 
       <div className="grid gap-6">
+        {errorMessage && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Problem Encountered</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
+
         <Card className="border-none shadow-sm">
           <CardHeader>
             <CardTitle>Select Statement</CardTitle>
@@ -179,7 +173,7 @@ export default function UploadPage() {
               file ? "border-primary/50 bg-primary/5" : "border-muted-foreground/20 hover:border-primary/30"
             )}>
               <div className="p-4 bg-primary/10 rounded-full mb-4">
-                {getFileIcon()}
+                {file ? <FileText className="h-8 w-8 text-primary" /> : <Upload className="h-8 w-8 text-primary" />}
               </div>
               <div className="text-center">
                 <Label htmlFor="file-upload" className="cursor-pointer">

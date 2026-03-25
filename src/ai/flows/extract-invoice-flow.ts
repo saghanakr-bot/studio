@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent for extracting data from single invoices or bills.
@@ -40,21 +41,23 @@ const extractInvoicePrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash',
   input: { schema: ExtractInvoiceInputSchema },
   output: { schema: ExtractInvoiceOutputSchema },
-  prompt: `You are an expert bookkeeping assistant. Extract precise financial data from this {{type}} document.
+  config: {
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+    ],
+  },
+  prompt: `Extract financial data from this {{type}} document. 
 
-ANALYSIS GUIDELINES:
-1. **Vendor/Client Identification**: Look at the prominent logo or header text. For bills, this is the company charging you. For income, this is your company's name or the client's name.
-2. **Date Extraction**: Look for "Invoice Date", "Billing Date", or just "Date". Use YYYY-MM-DD format.
-3. **Total Amount Verification**: 
-   - Locate the 'Grand Total', 'Total Due', or 'Amount Payable'.
-   - Verify if this total includes tax. Extract the tax amount separately if listed.
-   - If there are multiple line items, ensure their sum matches the sub-total before tax.
-4. **Description**: Summarize the primary nature of the transaction in 5-7 words.
+1. **Vendor**: The entity issuing the bill or the client for income.
+2. **Amount**: Total amount payable including taxes.
+3. **Date**: YYYY-MM-DD format.
+4. **Description**: Concise summary of services/items.
 
-Document Content:
-{{media url=invoiceDataUri}}
-
-Return the result as a JSON object matching ExtractInvoiceOutputSchema. If a field is missing, provide a logical default based on context (e.g., category "General Expense" if unclear).`,
+Document:
+{{media url=invoiceDataUri}}`,
 });
 
 const extractInvoiceFlow = ai.defineFlow(
