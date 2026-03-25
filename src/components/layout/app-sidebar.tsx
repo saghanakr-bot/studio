@@ -2,7 +2,6 @@
 
 import { 
   LayoutDashboard, 
-  Bell, 
   TrendingUp, 
   PieChart, 
   Wallet,
@@ -42,7 +41,6 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Payment Reminders", url: "/reminders", icon: Bell },
   { title: "Cash Flow Projections", url: "/projections", icon: TrendingUp },
   { title: "Financial Reports", url: "/reports", icon: PieChart },
 ];
