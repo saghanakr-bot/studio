@@ -16,17 +16,15 @@ import {
   TrendingDown, 
   Wallet, 
   Image as ImageIcon, 
-  File,
-  LogIn
+  File
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { categorizeTransactions, AICategorizationOutput } from "@/ai/flows/ai-transaction-categorization";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-import { useFirestore, useUser, useAuth } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { collection, doc, writeBatch } from "firebase/firestore";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -38,8 +36,6 @@ export default function UploadPage() {
   const [results, setResults] = useState<AICategorizationOutput | null>(null);
   const { toast } = useToast();
   const db = useFirestore();
-  const { user, loading: userLoading } = useUser();
-  const auth = useAuth();
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,19 +63,6 @@ export default function UploadPage() {
     });
   };
 
-  const handleSignIn = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Sign in failed",
-        description: error.message,
-      });
-    }
-  };
-
   const processFile = async () => {
     if (!file) return;
     setIsProcessing(true);
@@ -103,11 +86,11 @@ export default function UploadPage() {
   };
 
   const syncToDashboard = () => {
-    if (!results || !db || !user) {
+    if (!results || !db) {
       toast({
         variant: "destructive",
         title: "Sync failed",
-        description: !user ? "You must be signed in to sync data." : "Missing statement data. Please process a file first.",
+        description: "Missing statement data. Please process a file first.",
       });
       return;
     }
@@ -124,7 +107,7 @@ export default function UploadPage() {
       currency: results.summary.currency,
       statementPeriod: results.summary.statementPeriod || "Unknown",
       lastUpdated: new Date().toISOString(),
-      userId: user.uid
+      userId: "demo-user" // Using a fixed ID since login is removed
     };
     
     batch.set(accountRef, accountData);
@@ -135,7 +118,7 @@ export default function UploadPage() {
       batch.set(txRef, {
         ...tx,
         accountId: accountRef.id,
-        userId: user.uid
+        userId: "demo-user"
       });
     });
 
@@ -258,16 +241,9 @@ export default function UploadPage() {
 
               <div className="pt-6 flex justify-end gap-3">
                 <Button variant="outline" onClick={() => { setResults(null); setFile(null); }}>Clear</Button>
-                
-                {user ? (
-                  <Button className="bg-primary" disabled={isSyncing} onClick={syncToDashboard}>
-                    {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Syncing...</> : "Confirm & Sync to Dashboard"}
-                  </Button>
-                ) : (
-                  <Button className="bg-accent text-accent-foreground" onClick={handleSignIn}>
-                    <LogIn className="h-4 w-4 mr-2" /> Sign in to Sync Data
-                  </Button>
-                )}
+                <Button className="bg-primary" disabled={isSyncing} onClick={syncToDashboard}>
+                  {isSyncing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Syncing...</> : "Confirm & Sync to Dashboard"}
+                </Button>
               </div>
             </CardContent>
           </Card>

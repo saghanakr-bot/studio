@@ -15,8 +15,8 @@ import {
   ChartTooltipContent,
   ChartConfig
 } from "@/components/ui/chart";
-import { useFirestore, useCollection, useUser } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, orderBy } from "firebase/firestore";
 import { useMemo } from "react";
 import { Loader2, TrendingUp } from "lucide-react";
 
@@ -33,12 +33,11 @@ const chartConfig = {
 
 export function MainChart() {
   const db = useFirestore();
-  const { user } = useUser();
 
   const accountsQuery = useMemo(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("lastUpdated", "asc"));
-  }, [db, user]);
+    if (!db) return null;
+    return query(collection(db, "accounts"), orderBy("lastUpdated", "asc"));
+  }, [db]);
 
   const { data: accounts, loading } = useCollection(accountsQuery);
 

@@ -1,23 +1,18 @@
 
 "use client";
 
-import { useFirestore, useCollection, useUser } from "@/firebase";
-import { collection, query, where, limit as firestoreLimit } from "firebase/firestore";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, limit as firestoreLimit } from "firebase/firestore";
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertCircle, CheckCircle2, Loader2, BellOff } from "lucide-react";
+import { Loader2, BellOff } from "lucide-react";
 
 export function PaymentRemindersList({ limit }: { limit?: number }) {
   const db = useFirestore();
-  const { user } = useUser();
 
-  // In a real app, reminders might be in their own collection.
-  // For now, we'll check if the user has any synced accounts to determine if we show mock or real empty states.
   const accountsQuery = useMemo(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "accounts"), where("userId", "==", user.uid), firestoreLimit(1));
-  }, [db, user]);
+    if (!db) return null;
+    return query(collection(db, "accounts"), firestoreLimit(1));
+  }, [db]);
 
   const { data: accounts, loading } = useCollection(accountsQuery);
 
@@ -31,7 +26,6 @@ export function PaymentRemindersList({ limit }: { limit?: number }) {
 
   const hasData = accounts && accounts.length > 0;
 
-  // Since we don't have a reminders collection yet, we show an empty state if no accounts exist
   if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -44,7 +38,6 @@ export function PaymentRemindersList({ limit }: { limit?: number }) {
     );
   }
 
-  // Placeholder for when we have actual data syncing
   return (
     <div className="space-y-6">
       <div className="text-center py-8">

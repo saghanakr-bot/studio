@@ -3,29 +3,28 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, TrendingDown, Loader2, Info } from "lucide-react";
-import { useFirestore, useCollection, useUser } from "@/firebase";
-import { collection, query, where, collectionGroup } from "firebase/firestore";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, collectionGroup } from "firebase/firestore";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function SummaryCards() {
   const db = useFirestore();
-  const { user } = useUser();
   
-  // Query for all accounts to get verified opening/closing balances
+  // Query for all accounts (public demo state)
   const accountsQuery = useMemo(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "accounts"), where("userId", "==", user.uid));
-  }, [db, user]);
+    if (!db) return null;
+    return query(collection(db, "accounts"));
+  }, [db]);
 
   const { data: accounts, loading: accountsLoading } = useCollection(accountsQuery);
 
-  // Query for all transactions to calculate detailed credit/debit totals
+  // Query for all transactions (public demo state)
   const transactionsQuery = useMemo(() => {
-    if (!db || !user) return null;
-    return query(collectionGroup(db, "transactions"), where("userId", "==", user.uid));
-  }, [db, user]);
+    if (!db) return null;
+    return query(collectionGroup(db, "transactions"));
+  }, [db]);
 
   const { data: transactions, loading: transactionsLoading } = useCollection(transactionsQuery);
 

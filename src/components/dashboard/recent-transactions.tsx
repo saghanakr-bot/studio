@@ -4,25 +4,22 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useUser } from "@/firebase";
-import { collectionGroup, query, where, orderBy, limit } from "firebase/firestore";
+import { useFirestore, useCollection } from "@/firebase";
+import { collectionGroup, query, orderBy, limit } from "firebase/firestore";
 import { useMemo } from "react";
 import { Loader2, Inbox } from "lucide-react";
 
 export function RecentTransactions() {
   const db = useFirestore();
-  const { user } = useUser();
 
   const transactionsQuery = useMemo(() => {
-    if (!db || !user) return null;
-    // We use collectionGroup to find all "transactions" sub-collections belonging to this user
+    if (!db) return null;
     return query(
       collectionGroup(db, "transactions"),
-      where("userId", "==", user.uid),
       orderBy("date", "desc"),
       limit(5)
     );
-  }, [db, user]);
+  }, [db]);
 
   const { data: transactions, loading } = useCollection(transactionsQuery);
 
