@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection } from "@/firebase";
-import { collectionGroup, query, orderBy, limit, doc, updateDoc, getDoc, runTransaction } from "firebase/firestore";
+import { collectionGroup, query, orderBy, limit, doc, runTransaction } from "firebase/firestore";
 import { useMemo, useState } from "react";
 import { Loader2, Inbox, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ export function RecentTransactions() {
   const transactionsQuery = useMemo(() => {
     if (!db) return null;
     try {
+      // Note: This collectionGroup query requires a composite index in Firestore.
       return query(
         collectionGroup(db, "transactions"),
         orderBy("date", "desc"),
@@ -34,51 +35,52 @@ export function RecentTransactions() {
 
   const { data: transactions, loading, error } = useCollection(transactionsQuery);
 
-  const handleClearTransaction = async (transaction: any) => {
-    if (!db || clearingId) return;
+  const handleClearTransaction = (transaction: any) => {
+    if (!db || clearingId || !transaction.accountId) return;
     setClearingId(transaction.id);
 
-    try {
-      const accountRef = doc(db, "accounts", transaction.accountId);
-      const txRef = doc(db, "accounts", transaction.accountId, "transactions", transaction.id);
+    const accountRef = doc(db, "accounts", transaction.accountId);
+    const txRef = doc(db, "accounts", transaction.accountId, "transactions", transaction.id);
 
-      await runTransaction(db, async (txn) => {
-        const accountDoc = await txn.get(accountRef);
-        if (!accountDoc.exists()) {
-          throw new Error("Account does not exist!");
-        }
+    // Run atomic transaction to update both the status and the account balance
+    runTransaction(db, async (txn) => {
+      const accountDoc = await txn.get(accountRef);
+      if (!accountDoc.exists()) {
+        throw new Error("Target account does not exist.");
+      }
 
-        const currentBalance = accountDoc.data().closingBalance || 0;
-        const newBalance = currentBalance + (transaction.amount || 0);
+      const currentBalance = accountDoc.data().closingBalance || 0;
+      const amount = transaction.amount || 0;
+      const newBalance = currentBalance + amount;
 
-        // Update status and balance in one atomic transaction
-        txn.update(txRef, { status: "cleared", clearedAt: new Date().toISOString() });
-        txn.update(accountRef, { 
-          closingBalance: newBalance,
-          lastUpdated: new Date().toISOString()
-        });
-      });
-
-      toast({
-        title: "Transaction Cleared",
-        description: `Balance updated by ₹${Math.abs(transaction.amount).toLocaleString()}.`,
-      });
-    } catch (err: any) {
-      console.error(err);
-      toast({
-        variant: "destructive",
-        title: "Error clearing transaction",
-        description: err.message || "Failed to update balance.",
+      txn.update(txRef, { 
+        status: "cleared", 
+        clearedAt: new Date().toISOString() 
       });
       
+      txn.update(accountRef, { 
+        closingBalance: newBalance,
+        lastUpdated: new Date().toISOString()
+      });
+
+      return newBalance;
+    })
+    .then((newBalance) => {
+      toast({
+        title: "Transaction Cleared",
+        description: `Account balance updated to ₹${newBalance.toLocaleString()}.`,
+      });
+    })
+    .catch(async (err: any) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `accounts/${transaction.accountId}/transactions/${transaction.id}`,
+        path: txRef.path,
         operation: 'update',
         requestResourceData: { status: 'cleared' }
       }));
-    } finally {
+    })
+    .finally(() => {
       setClearingId(null);
-    }
+    });
   };
 
   if (loading) {
@@ -94,7 +96,7 @@ export function RecentTransactions() {
       <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-4">
         <AlertCircle className="h-8 w-8 mb-3 opacity-20" />
         <p className="text-sm font-medium">Transaction query requires indexing.</p>
-        <p className="text-xs mt-1 max-w-[280px]">If you just uploaded data, it may take a few minutes for Firestore to process global queries.</p>
+        <p className="text-xs mt-1 max-w-[280px]">The "Recent Transactions" list uses a collection group query which requires a Firestore index. Check your console for the direct link to create it.</p>
       </div>
     );
   }

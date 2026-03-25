@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -59,6 +60,7 @@ export default function ManualTransactionPage() {
     setIsSyncing(true);
 
     try {
+      // Find or create a default account for the manual transaction
       const accountsRef = collection(db, "accounts");
       const accountsQuery = query(accountsRef, orderBy("lastUpdated", "desc"), limit(1));
       const accountsSnapshot = await getDocs(accountsQuery);
@@ -69,12 +71,20 @@ export default function ManualTransactionPage() {
       } else {
         const newAccountRef = doc(accountsRef);
         accountId = newAccountRef.id;
-        await setDoc(newAccountRef, {
+        const defaultAccount = {
           name: "Main Business Account",
           openingBalance: 0,
           closingBalance: 0,
           currency: "INR",
           lastUpdated: new Date().toISOString(),
+        };
+        // Initiate creation (non-blocking as per guidelines)
+        setDoc(newAccountRef, defaultAccount).catch(e => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: newAccountRef.path,
+            operation: 'create',
+            requestResourceData: defaultAccount
+          }));
         });
       }
 
@@ -95,6 +105,7 @@ export default function ManualTransactionPage() {
         createdAt: new Date().toISOString()
       };
 
+      // Initiate transaction creation (non-blocking)
       setDoc(txRef, txData).catch(e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: txRef.path,
@@ -105,7 +116,7 @@ export default function ManualTransactionPage() {
 
       toast({
         title: "Transaction Saved",
-        description: `Manually added ${type} of ₹${numAmount.toLocaleString()}.`,
+        description: `Entry added as Pending. Clear it on the dashboard to update balance.`,
       });
 
       router.push("/");
@@ -114,7 +125,7 @@ export default function ManualTransactionPage() {
       toast({
         variant: "destructive",
         title: "Save Error",
-        description: "Failed to save the transaction manually.",
+        description: "Failed to initiate manual entry.",
       });
       setIsSyncing(false);
     }
