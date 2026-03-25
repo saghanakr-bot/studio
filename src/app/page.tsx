@@ -29,16 +29,6 @@ export default function DashboardPage() {
         <SummaryCards />
         <BusinessHealthScore />
       </div>
-
-      <div className="mt-8 p-12 border-2 border-dashed rounded-3xl flex flex-col items-center justify-center text-center bg-slate-50/50">
-        <div className="p-4 bg-white rounded-full shadow-sm mb-4">
-          <PlusCircle className="h-8 w-8 text-primary/40" />
-        </div>
-        <h3 className="text-xl font-bold text-slate-800">Your Activity Hub</h3>
-        <p className="text-sm text-muted-foreground max-w-sm mt-2">
-          As you add transactions and sync statements, detailed insights and projections will automatically appear here.
-        </p>
-      </div>
     </div>
   );
 }
