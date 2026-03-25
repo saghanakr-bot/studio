@@ -6,7 +6,7 @@ import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, PlusCircle, Filter } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { NewFinancialEntryModal } from "@/components/dashboard/new-financial-entry-modal";
 
 export default function DashboardPage() {
@@ -18,13 +18,6 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Monitor your business liquidity and upcoming commitments.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <Filter className="mr-2 h-4 w-4" /> Filter
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" /> Export
-          </Button>
-          
           <NewFinancialEntryModal 
             trigger={
               <Button size="sm" className="bg-primary hover:bg-primary/90">
