@@ -12,7 +12,7 @@ export function SummaryCards() {
   const db = useFirestore();
   const { user } = useUser();
   
-  // Query for all accounts to get verified balances
+  // Query for all accounts to get verified opening balances
   const accountsQuery = useMemo(() => {
     if (!db || !user) return null;
     return query(collection(db, "accounts"), where("userId", "==", user.uid));
@@ -28,16 +28,19 @@ export function SummaryCards() {
 
   const { data: transactions, loading: transactionsLoading } = useCollection(transactionsQuery);
 
-  const totalBalance = useMemo(() => {
-    if (!accounts || accounts.length === 0) return 0;
-    return accounts.reduce((acc, curr) => acc + (curr.closingBalance || 0), 0);
-  }, [accounts]);
-
+  // Calculate the sum of all opening balances across statements
   const totalOpening = useMemo(() => {
     if (!accounts || accounts.length === 0) return 0;
     return accounts.reduce((acc, curr) => acc + (curr.openingBalance || 0), 0);
   }, [accounts]);
 
+  // Calculate the sum of all closing balances (reported by statements)
+  const totalReportedClosing = useMemo(() => {
+    if (!accounts || accounts.length === 0) return 0;
+    return accounts.reduce((acc, curr) => acc + (curr.closingBalance || 0), 0);
+  }, [accounts]);
+
+  // Calculate totals for credits (income) and debits (expenses)
   const { totalCredits, totalDebits } = useMemo(() => {
     if (!transactions || transactions.length === 0) return { totalCredits: 0, totalDebits: 0 };
     return transactions.reduce((acc, tx: any) => {
@@ -51,7 +54,12 @@ export function SummaryCards() {
     }, { totalCredits: 0, totalDebits: 0 });
   }, [transactions]);
 
-  const netChange = totalBalance - totalOpening;
+  // DERIVED BALANCE: Opening Balance + Total Credits - Total Debits
+  // This satisfies the requirement to "do" the math of credits/debits
+  const calculatedBalance = totalOpening + totalCredits - totalDebits;
+
+  // Percentage change based on the opening balance
+  const netChange = calculatedBalance - totalOpening;
   const percentageChange = totalOpening !== 0 ? ((netChange / totalOpening) * 100).toFixed(1) : "0";
 
   if (accountsLoading || transactionsLoading) {
@@ -79,9 +87,9 @@ export function SummaryCards() {
           <Wallet className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <div className="text-2xl font-bold">₹{calculatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs text-muted-foreground">
-            {hasData ? `Current liquidity across ${accounts.length} accounts` : "No accounts synced yet"}
+            {hasData ? `Derived from ${accounts.length} synced statements` : "No accounts synced yet"}
           </p>
         </CardContent>
       </Card>
@@ -94,7 +102,7 @@ export function SummaryCards() {
         <CardContent>
           <div className="text-2xl font-bold text-emerald-600">₹{totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total money in" : "Awaiting statement upload"}
+            {hasData ? "Total money in (Credits)" : "Awaiting statement upload"}
           </p>
         </CardContent>
       </Card>
@@ -107,7 +115,7 @@ export function SummaryCards() {
         <CardContent>
           <div className="text-2xl font-bold text-rose-600">₹{totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total money out" : "Awaiting statement upload"}
+            {hasData ? "Total money out (Debits)" : "Awaiting statement upload"}
           </p>
         </CardContent>
       </Card>
@@ -125,7 +133,7 @@ export function SummaryCards() {
             {hasData ? `${netChange >= 0 ? "+" : "-"}₹${Math.abs(netChange).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "No Data"}
           </div>
           <p className={cn("text-xs", hasData ? "opacity-80" : "text-muted-foreground")}>
-            {hasData ? `${percentageChange}% change from opening` : "Upload a statement to begin"}
+            {hasData ? `${percentageChange}% change from initial opening` : "Upload a statement to begin"}
           </p>
         </CardContent>
       </Card>
