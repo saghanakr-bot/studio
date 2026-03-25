@@ -2,7 +2,6 @@
 "use client";
 
 import { SummaryCards } from "@/components/dashboard/summary-cards";
-import { MainChart } from "@/components/dashboard/main-chart";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,20 +37,8 @@ export default function DashboardPage() {
 
       <SummaryCards />
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4 border-none shadow-sm">
-          <CardHeader>
-            <CardTitle>Cash Flow History</CardTitle>
-            <CardDescription>
-              Historical analysis of monthly liquidity.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <MainChart />
-          </CardContent>
-        </Card>
-        
-        <Card className="lg:col-span-3 border-none shadow-sm">
+      <div className="grid gap-6 md:grid-cols-1">
+        <Card className="border-none shadow-sm">
           <CardHeader>
             <CardTitle>Upcoming Payments</CardTitle>
             <CardDescription>
