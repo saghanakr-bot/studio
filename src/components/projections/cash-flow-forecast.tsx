@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -20,8 +19,7 @@ import {
   format, 
   addDays, 
   startOfDay, 
-  eachDayOfInterval,
-  isSameDay
+  eachDayOfInterval
 } from "date-fns";
 import { Loader2, TrendingUp, Sparkles, AlertTriangle, CheckCircle2, Info, ShieldAlert } from "lucide-react";
 import ARIMA from "arima";
@@ -89,7 +87,7 @@ export function CashFlowForecast() {
       }
 
       // 3. Balance Projection Simulation
-      const historicalChartData = timeSeriesInterval.slice(-14).map((day, i) => {
+      const historicalChartData = timeSeriesInterval.slice(-14).map((day) => {
         // Calculate historical balance points backward from current
         const offsetDays = timeSeriesInterval.slice(timeSeriesInterval.indexOf(day)).length;
         // This is a simplification for visualization
@@ -266,6 +264,7 @@ export function CashFlowForecast() {
                   strokeWidth={2}
                   fill="url(#colorPast)" 
                   data={projectionData.chartData.filter(d => d.type === 'past' || d.date === 'Today')} 
+                  key="past-area"
                 />
                 <Area 
                   type="monotone" 
@@ -274,6 +273,7 @@ export function CashFlowForecast() {
                   strokeDasharray="5 5" 
                   fill="transparent" 
                   data={projectionData.chartData.filter(d => d.type === 'forecast' || d.date === 'Today')} 
+                  key="forecast-area"
                 />
                 <Area 
                   type="monotone" 
@@ -283,6 +283,7 @@ export function CashFlowForecast() {
                   strokeDasharray="3 3"
                   fill="transparent" 
                   data={projectionData.chartData.filter(d => d.type === 'forecast' || d.date === 'Today')} 
+                  key="post-invest-area"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -382,7 +383,7 @@ export function CashFlowForecast() {
               </div>
               <div className="flex gap-3">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 mt-1" />
-                <p className="text-[10px] text-slate-600"><strong>Low Risk:</strong> Balance remains comfortably high (>20% over threshold).</p>
+                <p className="text-[10px] text-slate-600"><strong>Low Risk:</strong> Balance remains comfortably high ({" > "}20% over threshold).</p>
               </div>
             </CardContent>
           </Card>
