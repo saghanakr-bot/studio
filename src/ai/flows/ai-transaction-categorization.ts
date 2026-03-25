@@ -49,7 +49,6 @@ export async function categorizeTransactions(input: AICategorizationInput): Prom
 
 const categorizeTransactionsPrompt = ai.definePrompt({
   name: 'categorizeTransactionsPrompt',
-  model: 'googleai/gemini-1.5-flash',
   input: { schema: AICategorizationInputSchema },
   output: { schema: AICategorizationOutputSchema },
   config: {
