@@ -29,7 +29,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Upload Statements", url: "/upload", icon: Upload },
   { title: "Payment Reminders", url: "/reminders", icon: Bell },
   { title: "Cash Flow Projections", url: "/projections", icon: TrendingUp },
   { title: "Financial Reports", url: "/reports", icon: PieChart },

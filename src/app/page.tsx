@@ -8,6 +8,7 @@ import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-l
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, PlusCircle, Filter } from "lucide-react";
+import { NewFinancialEntryModal } from "@/components/dashboard/new-financial-entry-modal";
 
 export default function DashboardPage() {
   return (
@@ -24,9 +25,14 @@ export default function DashboardPage() {
           <Button variant="outline" size="sm">
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
-          <Button size="sm" className="bg-primary hover:bg-primary/90">
-            <PlusCircle className="mr-2 h-4 w-4" /> New Transaction
-          </Button>
+          
+          <NewFinancialEntryModal 
+            trigger={
+              <Button size="sm" className="bg-primary hover:bg-primary/90">
+                <PlusCircle className="mr-2 h-4 w-4" /> New Transaction
+              </Button>
+            } 
+          />
         </div>
       </div>
 
