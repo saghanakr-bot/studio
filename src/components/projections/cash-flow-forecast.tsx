@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Area, 
@@ -19,9 +19,7 @@ import {
   format, 
   addDays, 
   startOfDay, 
-  eachDayOfInterval, 
-  subDays,
-  isSameDay 
+  eachDayOfInterval
 } from "date-fns";
 import { Loader2, TrendingUp, Sparkles, AlertTriangle, CheckCircle2, Wallet, ArrowRight } from "lucide-react";
 import ARIMA from "arima";
@@ -51,44 +49,42 @@ export function CashFlowForecast() {
   const projectionData = useMemo(() => {
     if (!transactions || transactions.length < 5) return null;
 
-    // Group transactions by date
-    const dailyNetFlow: Record<string, number> = {};
-    transactions.forEach((tx: any) => {
-      const dateStr = format(startOfDay(new Date(tx.date)), "yyyy-MM-dd");
-      const amount = tx.type === 'credit' ? Math.abs(tx.amount) : -Math.abs(tx.amount);
-      dailyNetFlow[dateStr] = (dailyNetFlow[dateStr] || 0) + amount;
-    });
-
-    // Create time series
-    const sortedDates = Object.keys(dailyNetFlow).sort();
-    const startDate = new Date(sortedDates[0]);
-    const endDate = new Date(sortedDates[sortedDates.length - 1]);
-    
-    const timeSeriesInterval = eachDayOfInterval({ start: startDate, end: endDate });
-    const timeSeriesData = timeSeriesInterval.map(day => {
-      const dateStr = format(day, "yyyy-MM-dd");
-      return dailyNetFlow[dateStr] || 0;
-    });
-
-    // Volatility Check
-    const mean = timeSeriesData.reduce((a, b) => a + b, 0) / timeSeriesData.length;
-    const variance = timeSeriesData.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / timeSeriesData.length;
-    const stdDev = Math.sqrt(variance);
-    const isHighVolatility = stdDev > Math.abs(mean) * 2;
-
-    // Run ARIMA (1,1,1)
     try {
+      // Group transactions by date
+      const dailyNetFlow: Record<string, number> = {};
+      transactions.forEach((tx: any) => {
+        const dateStr = format(startOfDay(new Date(tx.date)), "yyyy-MM-dd");
+        const amount = tx.type === 'credit' ? Math.abs(tx.amount) : -Math.abs(tx.amount);
+        dailyNetFlow[dateStr] = (dailyNetFlow[dateStr] || 0) + amount;
+      });
+
+      // Create time series
+      const sortedDates = Object.keys(dailyNetFlow).sort();
+      const startDate = new Date(sortedDates[0]);
+      const endDate = new Date(sortedDates[sortedDates.length - 1]);
+      
+      const timeSeriesInterval = eachDayOfInterval({ start: startDate, end: endDate });
+      const timeSeriesData = timeSeriesInterval.map(day => {
+        const dateStr = format(day, "yyyy-MM-dd");
+        return dailyNetFlow[dateStr] || 0;
+      });
+
+      // Volatility Check
+      const mean = timeSeriesData.reduce((a, b) => a + b, 0) / timeSeriesData.length;
+      const variance = timeSeriesData.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / timeSeriesData.length;
+      const stdDev = Math.sqrt(variance);
+      const isHighVolatility = stdDev > Math.abs(mean) * 2;
+
+      // Run ARIMA (1,1,1)
       const arima = new ARIMA({ p: 1, d: 1, q: 1, verbose: false }).train(timeSeriesData);
       const [predictions] = arima.predict(forecastDays);
 
       // Construct Chart Data
       const historicalChartData = timeSeriesInterval.slice(-15).map((day, i) => {
-        // Calculate historical balance roughly
-        // In a real app we'd have accurate daily balance snapshots
         return {
           date: format(day, "MMM dd"),
           balance: currentBalance - (timeSeriesData.slice(timeSeriesData.length - 15 + i).reduce((a, b) => a + b, 0)),
-          type: 'past'
+          type: 'past' as const
         };
       });
 
@@ -98,11 +94,11 @@ export function CashFlowForecast() {
         return {
           date: format(addDays(new Date(), i + 1), "MMM dd"),
           balance: runningBalance,
-          type: 'forecast'
+          type: 'forecast' as const
         };
       });
 
-      const combinedData = [...historicalChartData, { date: 'Today', balance: currentBalance, type: 'past' }, ...futureChartData];
+      const combinedData = [...historicalChartData, { date: 'Today', balance: currentBalance, type: 'past' as const }, ...futureChartData];
       
       // Investment Logic
       const amountToInvest = parseFloat(investmentAmount) || 0;
@@ -111,9 +107,7 @@ export function CashFlowForecast() {
       let safeDateIndex = -1;
       for (let i = 0; i < futureChartData.length; i++) {
         const futureBal = futureChartData[i].balance;
-        // Must have enough for investment AND remain above safety threshold
         if (futureBal >= amountToInvest + safetyThreshold) {
-          // Double check subsequent days to ensure it doesn't immediately drop
           const isStable = futureChartData.slice(i, i + 3).every(d => d.balance >= amountToInvest + safetyThreshold);
           if (isStable) {
             safeDateIndex = i;
@@ -132,7 +126,7 @@ export function CashFlowForecast() {
         safetyThreshold
       };
     } catch (e) {
-      console.error("ARIMA Error:", e);
+      console.error("Forecasting Calculation Error:", e);
       return null;
     }
   }, [transactions, currentBalance, investmentAmount, forecastDays]);
@@ -286,7 +280,7 @@ export function CashFlowForecast() {
                   </div>
                   <h4 className="text-lg font-bold leading-tight">No Safe Date in Next 30 Days</h4>
                   <p className="text-xs opacity-70 mt-2 leading-relaxed">
-                    Forecasted volatility or upcoming expenses suggest keeping liquidity high for now.
+                    Forecasted volatility suggest keeping liquidity high for now.
                   </p>
                 </div>
               )}
@@ -301,38 +295,6 @@ export function CashFlowForecast() {
                     {projectionData.isHighVolatility ? "High Risk" : "Low Risk"}
                   </Badge>
                 </div>
-                <Button size="sm" variant="outline" className="bg-white/10 border-white/20 hover:bg-white hover:text-primary transition-all">
-                  Full Report <ArrowRight size={14} className="ml-2" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <AlertTriangle size={16} className="text-amber-500" /> Confidence Score
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground font-medium">Data Points</span>
-                  <span className="font-bold">{transactions?.length || 0} Tx</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground font-medium">Model Type</span>
-                  <span className="font-bold">ARIMA (1,1,1)</span>
-                </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-1000" 
-                    style={{ width: `${Math.min(95, ((transactions?.length || 0) / 30) * 100)}%` }} 
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                  Accuracy increases with time. Continue syncing statements weekly for higher confidence scores.
-                </p>
               </div>
             </CardContent>
           </Card>

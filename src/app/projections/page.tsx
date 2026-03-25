@@ -2,8 +2,9 @@
 "use client";
 
 import { CashFlowForecast } from "@/components/projections/cash-flow-forecast";
-import { TrendingUp, Info, ShieldCheck, AlertCircle } from "lucide-react";
+import { TrendingUp, Info, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Suspense } from "react";
 
 export default function ProjectionsPage() {
   return (
@@ -25,7 +26,9 @@ export default function ProjectionsPage() {
         </AlertDescription>
       </Alert>
 
-      <CashFlowForecast />
+      <Suspense fallback={<div className="flex items-center justify-center py-24"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+        <CashFlowForecast />
+      </Suspense>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="p-6 rounded-2xl bg-emerald-50/30 border border-emerald-100 flex gap-4 items-start">
