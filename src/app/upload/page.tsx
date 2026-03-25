@@ -72,7 +72,7 @@ export default function UploadPage() {
       setResults(response);
       toast({
         title: "Analysis Complete",
-        description: `Extracted balances and ${response.categorizedTransactions.length} transactions.`,
+        description: `Extracted balance and ${response.categorizedTransactions.length} transactions.`,
       });
     } catch (error) {
       toast({
@@ -106,7 +106,6 @@ export default function UploadPage() {
       currency: results.summary.currency || "INR",
       statementPeriod: results.summary.statementPeriod || "Unknown",
       lastUpdated: new Date().toISOString(),
-      userId: "demo-user"
     };
     
     // Fire off account creation (non-blocking)
@@ -124,7 +123,6 @@ export default function UploadPage() {
     results.categorizedTransactions.forEach((tx) => {
       const txRef = doc(collection(db, "accounts", accountRef.id, "transactions"));
       
-      // Sanitizing object to remove any 'undefined' fields before Firestore write
       const txData: any = {
         date: tx.date,
         description: tx.description,
@@ -132,7 +130,6 @@ export default function UploadPage() {
         type: tx.type,
         category: tx.category,
         accountId: accountRef.id,
-        userId: "demo-user"
       };
 
       if (tx.transactionId) txData.transactionId = tx.transactionId;
@@ -148,10 +145,9 @@ export default function UploadPage() {
       });
     });
 
-    // Provide instant feedback and redirect (Optimistic Redirect)
     toast({
       title: "Syncing Started",
-      description: "Redirecting to dashboard. Your data will appear momentarily.",
+      description: "Redirecting to dashboard...",
     });
     
     router.push("/");
@@ -167,8 +163,8 @@ export default function UploadPage() {
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-8 pb-12">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Upload Bank Statements</h1>
-        <p className="text-muted-foreground">Import PDFs or images to extract balances and organize transactions.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Sync Bank Statement</h1>
+        <p className="text-muted-foreground">Import PDFs or images to extract balances and organize transactions automatically.</p>
       </div>
 
       <div className="grid gap-6">
@@ -212,11 +208,7 @@ export default function UploadPage() {
               <CardDescription>Extracted data for {results.summary.statementPeriod || "Statement Period"}.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-2 mb-1"><Wallet className="h-3 w-3" /> Opening Balance</p>
-                  <p className="text-xl font-bold">{(results.summary.currency || "INR")} {results.summary.openingBalance.toLocaleString()}</p>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-2 mb-1"><TrendingUp className="h-3 w-3" /> Closing Balance</p>
                   <p className="text-xl font-bold text-primary">{(results.summary.currency || "INR")} {results.summary.closingBalance.toLocaleString()}</p>

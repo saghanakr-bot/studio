@@ -35,8 +35,8 @@ export function SummaryCards() {
 
   if (accountsLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid gap-4 md:grid-cols-3">
+        {[...Array(3)].map((_, i) => (
           <Card key={i} className="border-none shadow-sm h-32 flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </Card>
@@ -57,13 +57,13 @@ export function SummaryCards() {
   const hasData = accounts && accounts.length > 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-3">
       <Card className="border-none shadow-sm overflow-hidden relative bg-primary text-primary-foreground">
         <div className="absolute top-0 right-0 p-3 opacity-10">
           <Wallet size={80} />
         </div>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+          <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
           <div className="flex items-center gap-2">
             <Wallet className="h-4 w-4" />
             {hasData && (
@@ -73,7 +73,7 @@ export function SummaryCards() {
                     <Info className="h-3.5 w-3.5 opacity-70" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">Aggregate closing balance from your synced statements.</p>
+                    <p className="text-xs">Aggregated closing balance from your synced records.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -83,20 +83,7 @@ export function SummaryCards() {
         <CardContent>
           <div className="text-2xl font-bold">₹{totals.closing.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           <p className="text-xs opacity-80 mt-1">
-            {hasData ? `Verified from ${totals.count} statement(s)` : "No statements synced"}
-          </p>
-        </CardContent>
-      </Card>
-      
-      <Card className="border-none shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Opening Balance</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">₹{totals.opening.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Starting liquidity" : "Awaiting upload"}
+            {hasData ? `Verified from ${totals.count} record(s)` : "No data synced"}
           </p>
         </CardContent>
       </Card>
@@ -113,7 +100,7 @@ export function SummaryCards() {
             ₹{Math.abs(netChange).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {hasData ? "Total movement" : "Upload a statement"}
+            {hasData ? "Total movement" : "Awaiting sync"}
           </p>
         </CardContent>
       </Card>
@@ -131,7 +118,7 @@ export function SummaryCards() {
             {hasData ? `${percentageChange}%` : "0.0%"}
           </div>
           <p className={cn("text-xs", hasData ? "opacity-80" : "text-muted-foreground")}>
-            {hasData ? `Since opening period` : "Awaiting data"}
+            {hasData ? `Performance over period` : "Awaiting data"}
           </p>
         </CardContent>
       </Card>
