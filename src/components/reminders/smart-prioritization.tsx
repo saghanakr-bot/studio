@@ -13,6 +13,8 @@ import {
   ShieldAlert,
   Clock,
   Loader2,
+  TrendingUp,
+  ArrowUpRight,
   CheckCircle2
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
@@ -40,83 +42,97 @@ export function SmartPrioritization() {
   const { data: accounts } = useCollection(accountsQuery);
   const currentBalance = accounts?.reduce((sum, acc: any) => sum + (acc.closingBalance || 0), 0) || 0;
 
-  // 2. Get pending bills (debits) across all accounts
+  // 2. Get ALL pending transactions (Income & Bills) across all accounts
   const pendingQuery = useMemo(() => {
     if (!db) return null;
     return query(
       collectionGroup(db, "transactions"),
       where("status", "==", "pending"),
-      where("type", "==", "debit"),
       orderBy("dueDate", "asc")
     );
   }, [db]);
 
-  const { data: pendingBills, loading } = useCollection<Transaction>(pendingQuery);
+  const { data: pendingItems, loading } = useCollection<Transaction>(pendingQuery);
 
-  // 3. Logic for prioritization based on urgency, risk, and relationship
-  const prioritizedBills = useMemo(() => {
-    if (!pendingBills) return [];
+  // 3. Logic for prioritization and feasibility
+  const prioritizedItems = useMemo(() => {
+    if (!pendingItems) return [];
 
     let tempBalance = currentBalance;
     const today = startOfDay(new Date());
     
-    return pendingBills.map((bill) => {
-      const dueDate = new Date(bill.dueDate || bill.date);
+    return pendingItems.map((item) => {
+      const dueDate = new Date(item.dueDate || item.date);
       const diffDays = differenceInDays(dueDate, today);
       
       let priorityScore = 0;
-      
-      // A. Penalty Risk (High for specific categories)
-      const highRiskCategories = ['Electricity', 'Rent', 'Payroll', 'Utilities', 'Taxes'];
-      if (highRiskCategories.includes(bill.category || '')) priorityScore += 50;
-      
-      // B. Relationship Flexibility
-      if (bill.relationshipType === 'Strict') priorityScore += 40;
-      else if (bill.relationshipType === 'Moderate') priorityScore += 20;
-      else if (bill.relationshipType === 'Friendly') priorityScore -= 20;
+      const isIncome = item.type === 'credit';
 
-      // C. Due Date Urgency
-      if (diffDays < 0) priorityScore += 100; // Overdue is critical
-      else if (diffDays === 0) priorityScore += 80; // Due today
-      else if (diffDays <= 3) priorityScore += 60; // Due very soon
-      else if (diffDays <= 7) priorityScore += 30; // Due this week
+      if (isIncome) {
+        // For income, priority is about following up on overdue payments
+        if (diffDays < 0) priorityScore += 80; // Overdue income needs attention
+        else if (diffDays <= 3) priorityScore += 40;
+        
+        // Income always adds to tempBalance for subsequent bill checks
+        tempBalance += Math.abs(item.amount);
+      } else {
+        // For bills (debits)
+        // A. Penalty Risk
+        const highRiskCategories = ['Electricity', 'Rent', 'Payroll', 'Utilities', 'Taxes'];
+        if (highRiskCategories.includes(item.category || '')) priorityScore += 50;
+        
+        // B. Relationship Flexibility
+        if (item.relationshipType === 'Strict') priorityScore += 40;
+        else if (item.relationshipType === 'Moderate') priorityScore += 20;
+        else if (item.relationshipType === 'Friendly') priorityScore -= 20;
 
-      const isFeasible = tempBalance >= Math.abs(bill.amount);
+        // C. Due Date Urgency
+        if (diffDays < 0) priorityScore += 100; // Overdue is critical
+        else if (diffDays === 0) priorityScore += 80; // Due today
+        else if (diffDays <= 3) priorityScore += 60; // Due very soon
+      }
+
+      const isFeasible = isIncome || tempBalance >= Math.abs(item.amount);
       
       // D. Suggested Action Logic
-      let suggestedAction: 'Pay Now' | 'Delay' | 'Partial Payment' | 'Negotiate' = 'Pay Now';
+      let suggestedAction: 'Pay Now' | 'Delay' | 'Partial Payment' | 'Negotiate' | 'Mark Received' | 'Follow Up' = 'Pay Now';
       
-      if (!isFeasible) {
-        if (bill.relationshipType === 'Friendly') {
-          suggestedAction = 'Partial Payment';
-        } else if (bill.relationshipType === 'Flexible' || bill.relationshipType === 'Moderate') {
-          suggestedAction = 'Negotiate';
-        } else {
-          suggestedAction = 'Delay';
+      if (isIncome) {
+        suggestedAction = diffDays < 0 ? 'Follow Up' : 'Mark Received';
+      } else {
+        if (!isFeasible) {
+          if (item.relationshipType === 'Friendly') {
+            suggestedAction = 'Partial Payment';
+          } else if (item.relationshipType === 'Flexible' || item.relationshipType === 'Moderate') {
+            suggestedAction = 'Negotiate';
+          } else {
+            suggestedAction = 'Delay';
+          }
         }
       }
 
-      if (isFeasible) {
-        tempBalance -= Math.abs(bill.amount);
+      if (!isIncome && isFeasible) {
+        tempBalance -= Math.abs(item.amount);
       }
 
       return {
-        ...bill,
+        ...item,
         priorityScore,
         isFeasible,
         suggestedAction,
-        daysLeft: diffDays
+        daysLeft: diffDays,
+        isIncome
       };
     }).sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [pendingBills, currentBalance]);
+  }, [pendingItems, currentBalance]);
 
-  const handlePayNow = async (bill: any) => {
-    if (!db || processingId || !bill.accountId) return;
+  const handleClear = async (item: any) => {
+    if (!db || processingId || !item.accountId) return;
     
-    setProcessingId(bill.id);
+    setProcessingId(item.id);
 
-    const accountRef = doc(db, "accounts", bill.accountId);
-    const txRef = doc(db, "accounts", bill.accountId, "transactions", bill.id);
+    const accountRef = doc(db, "accounts", item.accountId);
+    const txRef = doc(db, "accounts", item.accountId, "transactions", item.id);
 
     try {
       await runTransaction(db, async (txn) => {
@@ -126,8 +142,8 @@ export function SmartPrioritization() {
         }
 
         const currentAccBalance = Number(accountDoc.data().closingBalance || 0);
-        const amount = Number(bill.amount || 0);
-        const newBalance = currentAccBalance + amount; // amount is negative for bills
+        const amount = Number(item.amount || 0);
+        const newBalance = currentAccBalance + amount; 
 
         txn.update(txRef, { 
           status: "cleared", 
@@ -143,11 +159,11 @@ export function SmartPrioritization() {
       });
 
       toast({
-        title: "Payment Successful",
-        description: `Successfully paid ${bill.description}. Account balance updated.`,
+        title: item.isIncome ? "Payment Received" : "Payment Successful",
+        description: `Successfully updated ${item.description}. Account balance adjusted.`,
       });
     } catch (err: any) {
-      console.error("Payment Error:", err);
+      console.error("Transaction Error:", err);
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: txRef.path,
         operation: 'update',
@@ -156,8 +172,8 @@ export function SmartPrioritization() {
       
       toast({
         variant: "destructive",
-        title: "Payment Failed",
-        description: err.message || "Failed to process payment. Please try again.",
+        title: "Update Failed",
+        description: err.message || "Failed to process transaction. Please try again.",
       });
     } finally {
       setProcessingId(null);
@@ -172,12 +188,12 @@ export function SmartPrioritization() {
     </div>
   );
 
-  if (!pendingBills || pendingBills.length === 0) {
+  if (!pendingItems || pendingItems.length === 0) {
     return (
       <Card className="border-none shadow-sm bg-slate-50/50 py-12 flex flex-col items-center text-center">
         <Inbox className="h-10 w-10 text-slate-300 mb-4" />
-        <h3 className="font-bold text-slate-800">No Pending Obligations</h3>
-        <p className="text-xs text-slate-500 max-w-[240px] mt-1">Your cash flow is currently unencumbered.</p>
+        <h3 className="font-bold text-slate-800">No Pending Items</h3>
+        <p className="text-xs text-slate-500 max-w-[240px] mt-1">Your financial schedule is currently clear.</p>
       </Card>
     );
   }
@@ -185,35 +201,40 @@ export function SmartPrioritization() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4">
-        {prioritizedBills.map((bill) => (
-          <Card key={bill.id} className={cn(
+        {prioritizedItems.map((item) => (
+          <Card key={item.id} className={cn(
             "border-none shadow-sm overflow-hidden group transition-all hover:shadow-md",
-            bill.isFeasible ? "bg-white" : "bg-rose-50/20 border border-rose-100/50"
+            item.isIncome ? "bg-emerald-50/10 border border-emerald-100/30" : (item.isFeasible ? "bg-white" : "bg-rose-50/20 border border-rose-100/50")
           )}>
             <CardContent className="p-5">
               <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div className="flex gap-4">
                   <div className={cn(
                     "h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border",
-                    bill.priorityScore > 100 ? "bg-rose-100 text-rose-600 border-rose-200" : 
-                    bill.priorityScore > 50 ? "bg-amber-100 text-amber-600 border-amber-200" : 
-                    "bg-blue-100 text-blue-600 border-blue-200"
+                    item.isIncome ? "bg-emerald-100 text-emerald-600 border-emerald-200" : (
+                      item.priorityScore > 100 ? "bg-rose-100 text-rose-600 border-rose-200" : 
+                      item.priorityScore > 50 ? "bg-amber-100 text-amber-600 border-amber-200" : 
+                      "bg-blue-100 text-blue-600 border-blue-200"
+                    )
                   )}>
-                    {bill.priorityScore > 100 ? <ShieldAlert size={24} /> : <Clock size={24} />}
+                    {item.isIncome ? <TrendingUp size={24} /> : (item.priorityScore > 100 ? <ShieldAlert size={24} /> : <Clock size={24} />)}
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-bold text-slate-900 line-clamp-1">{bill.description}</h3>
+                    <h3 className="font-bold text-slate-900 line-clamp-1">{item.description}</h3>
                     <div className="flex items-center gap-3">
                       <p className={cn(
                         "text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
-                        bill.daysLeft < 0 ? "text-rose-600" : "text-muted-foreground"
+                        item.daysLeft < 0 ? "text-rose-600" : "text-muted-foreground"
                       )}>
                         <Calendar size={10} />
-                        {bill.daysLeft < 0 ? `${Math.abs(bill.daysLeft)} days overdue` : 
-                         bill.daysLeft === 0 ? "Due today" : `${bill.daysLeft} days left`}
+                        {item.daysLeft < 0 ? `${Math.abs(item.daysLeft)} days overdue` : 
+                         item.daysLeft === 0 ? "Due today" : `${item.daysLeft} days left`}
                       </p>
-                      <Badge variant="secondary" className="text-[9px] h-4 font-bold border-none bg-slate-100 text-slate-600">
-                        {bill.category || "General"}
+                      <Badge variant="secondary" className={cn(
+                        "text-[9px] h-4 font-bold border-none",
+                        item.isIncome ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                      )}>
+                        {item.category || "General"}
                       </Badge>
                     </div>
                   </div>
@@ -221,44 +242,61 @@ export function SmartPrioritization() {
 
                 <div className="flex flex-row md:flex-col justify-between items-center md:items-end gap-2 shrink-0">
                   <div className="text-right">
-                    <div className="text-lg font-black text-slate-900">₹{Math.abs(bill.amount).toLocaleString()}</div>
+                    <div className={cn(
+                      "text-lg font-black",
+                      item.isIncome ? "text-emerald-600" : "text-slate-900"
+                    )}>
+                      {item.isIncome ? "+" : "-"}₹{Math.abs(item.amount).toLocaleString()}
+                    </div>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                      {bill.relationshipType} Relationship
+                      {item.isIncome ? 'Customer' : `${item.relationshipType} Supplier`}
                     </p>
                   </div>
                   
-                  {bill.isFeasible ? (
+                  {item.isFeasible ? (
                     <Button 
                       size="sm"
-                      className="h-8 px-4 text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white uppercase transition-all gap-2 rounded-full"
-                      onClick={() => handlePayNow(bill)}
-                      disabled={processingId === bill.id}
+                      className={cn(
+                        "h-8 px-4 text-[10px] font-black uppercase transition-all gap-2 rounded-full text-white",
+                        item.isIncome ? "bg-emerald-600 hover:bg-emerald-700" : "bg-primary hover:bg-primary/90"
+                      )}
+                      onClick={() => handleClear(item)}
+                      disabled={processingId === item.id}
                     >
-                      {processingId === bill.id ? (
+                      {processingId === item.id ? (
                         <Loader2 size={12} className="animate-spin" />
                       ) : (
-                        <Check size={12} />
+                        item.isIncome ? <TrendingUp size={12} /> : <Check size={12} />
                       )}
-                      Pay Now
+                      {item.isIncome ? "Mark Received" : "Pay Now"}
                     </Button>
                   ) : (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="h-8 px-4 text-[10px] font-black border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white uppercase transition-all gap-2"
-                      onClick={() => setActiveNegotiation(bill)}
+                      onClick={() => setActiveNegotiation(item)}
                     >
-                      {bill.suggestedAction} <ArrowRight size={12} />
+                      {item.suggestedAction} <ArrowRight size={12} />
                     </Button>
                   )}
                 </div>
               </div>
 
-              {!bill.isFeasible && (
+              {!item.isFeasible && !item.isIncome && (
                 <div className="mt-4 p-3 bg-white/50 rounded-xl border border-rose-100 flex items-start gap-3">
                   <AlertTriangle size={14} className="text-rose-500 mt-0.5" />
                   <p className="text-[10px] text-rose-800 leading-relaxed">
-                    Balance check failed. Recommendation: <strong>{bill.suggestedAction}</strong> to maintain liquidity and trust.
+                    Liquidity risk detected. Action: <strong>{item.suggestedAction}</strong> to avoid overdraft or penalty.
+                  </p>
+                </div>
+              )}
+              
+              {item.isIncome && item.daysLeft < 0 && (
+                <div className="mt-4 p-3 bg-white/50 rounded-xl border border-emerald-100 flex items-start gap-3">
+                  <ArrowUpRight size={14} className="text-emerald-500 mt-0.5" />
+                  <p className="text-[10px] text-emerald-800 leading-relaxed">
+                    This income is overdue. Consider sending a friendly payment reminder to your customer.
                   </p>
                 </div>
               )}
@@ -276,3 +314,4 @@ export function SmartPrioritization() {
     </div>
   );
 }
+

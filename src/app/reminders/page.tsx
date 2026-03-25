@@ -1,13 +1,15 @@
+
 "use client";
 
 import { PaymentCalendar } from "@/components/reminders/payment-calendar";
 import { SmartPrioritization } from "@/components/reminders/smart-prioritization";
 import { Button } from "@/components/ui/button";
-import { Plus, BellRing, Mail, ShieldCheck } from "lucide-react";
+import { Plus, BellRing, Mail, ShieldCheck, Info } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewFinancialEntryModal } from "@/components/dashboard/new-financial-entry-modal";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RemindersPage() {
   return (
@@ -32,8 +34,16 @@ export default function RemindersPage() {
       </div>
 
       <div className="grid gap-10 lg:grid-cols-12 items-start">
-        {/* Left Column: Calendar */}
+        {/* Left Column: Calendar & Info */}
         <div className="lg:col-span-8 flex flex-col gap-8">
+          <Alert className="bg-blue-50 border-blue-100 text-blue-800">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-xs font-bold">Intelligent Planning</AlertTitle>
+            <AlertDescription className="text-xs">
+              Expected income is automatically factored into your bill feasibility check. Customer payments help unlock "Risky" obligations.
+            </AlertDescription>
+          </Alert>
+          
           <PaymentCalendar />
           
           <Card className="border-none shadow-sm bg-blue-50/30">
@@ -65,11 +75,15 @@ export default function RemindersPage() {
           </Card>
         </div>
 
-        {/* Right Column: Smart Prioritization */}
+        {/* Right Column: Smart Prioritization (Unified Income & Bills) */}
         <div className="lg:col-span-4 sticky top-8">
-          <SmartPrioritization />
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-slate-900 px-1">Upcoming Items</h2>
+            <SmartPrioritization />
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
