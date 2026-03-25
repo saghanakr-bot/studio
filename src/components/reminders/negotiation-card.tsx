@@ -11,7 +11,8 @@ import {
   Sparkles, 
   Globe, 
   Loader2,
-  Copy
+  Copy,
+  ChevronRight
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Transaction } from "@/lib/types";
@@ -44,8 +45,8 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Generation failed",
-        description: "Could not create message. Please try again."
+        title: "AI Generation failed",
+        description: "Could not create message. Please check connection and try again."
       });
     } finally {
       setIsGenerating(false);
@@ -71,13 +72,13 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(message);
-    toast({ title: "Copied", description: "Message copied to clipboard." });
+    toast({ title: "Copied", description: "Negotiation message copied to clipboard." });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <Card className="w-full max-w-lg border-none shadow-2xl relative overflow-hidden rounded-3xl">
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-cyan-400 to-primary" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+      <Card className="w-full max-w-lg border-none shadow-2xl relative overflow-hidden rounded-3xl bg-white">
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-primary to-emerald-500" />
         <Button 
           variant="ghost" 
           size="icon" 
@@ -88,23 +89,23 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
         </Button>
         
         <CardHeader className="pt-8 px-8">
-          <div className="flex items-center gap-3 mb-2 text-primary">
-            <div className="p-2 bg-primary/10 rounded-xl">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-primary/10 rounded-xl text-primary">
               <Sparkles size={24} />
             </div>
-            <CardTitle className="text-2xl font-bold">Negotiation Assistant</CardTitle>
+            <CardTitle className="text-2xl font-bold text-slate-900">Negotiation Hub</CardTitle>
           </div>
-          <CardDescription>
-            AI-crafted messages based on your relationship with <strong>{transaction.description.split(":")[0]}</strong>.
+          <CardDescription className="text-slate-500">
+            Professional AI-assisted communication for <strong>{transaction.description.split(":")[0]}</strong>.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="px-8 pb-8 flex flex-col gap-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Delay Period</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Request Extension</label>
               <Select value={delayDays} onValueChange={setDelayDays}>
-                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-transparent">
+                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -116,9 +117,9 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Language</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Language</label>
               <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
-                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-transparent">
+                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
                   <div className="flex items-center gap-2">
                     <Globe size={14} className="text-primary" />
                     <SelectValue />
@@ -134,21 +135,22 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
           </div>
 
           <div className="relative group">
-            <div className="absolute -top-3 left-4 px-2 bg-white text-[10px] font-bold text-primary uppercase tracking-wider z-10 border border-primary/20 rounded">
-              Message Preview
+            <div className="absolute -top-2.5 left-4 px-2 bg-white text-[9px] font-bold text-primary uppercase tracking-widest z-10 border border-primary/20 rounded">
+              AI Generated Message
             </div>
-            <div className="w-full min-h-[160px] p-6 rounded-2xl bg-slate-50 border border-slate-100 text-sm leading-relaxed text-slate-700 italic relative">
+            <div className="w-full min-h-[160px] p-6 rounded-2xl bg-slate-50 border border-slate-100 text-sm leading-relaxed text-slate-700 italic relative overflow-hidden">
               {isGenerating ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 rounded-2xl">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 rounded-2xl gap-3">
                   <Loader2 className="animate-spin text-primary h-6 w-6" />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Crafting Message...</p>
                 </div>
               ) : (
                 <>
-                  {message}
+                  <div className="whitespace-pre-wrap">{message}</div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="absolute bottom-2 right-2 h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-2 right-2 h-8 w-8 text-slate-400 hover:text-primary transition-colors"
                     onClick={copyToClipboard}
                   >
                     <Copy size={14} />
@@ -158,29 +160,34 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-2">
-            <Button 
-              className="h-12 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold gap-2 text-white"
-              onClick={handleWhatsApp}
-              disabled={!transaction.contactInfo?.phone}
-            >
-              <MessageSquare size={18} />
-              WhatsApp
-              {!transaction.contactInfo?.phone && <span className="text-[8px] opacity-50 ml-1">(No #)</span>}
-            </Button>
-            <Button 
-              className="h-12 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold gap-2 text-white"
-              onClick={handleEmail}
-              disabled={!transaction.contactInfo?.email}
-            >
-              <Mail size={18} />
-              Email
-              {!transaction.contactInfo?.email && <span className="text-[8px] opacity-50 ml-1">(No Email)</span>}
-            </Button>
+          <div className="flex flex-col gap-3 mt-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              Send Via <ChevronRight size={10} />
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                className="h-12 bg-[#25D366] hover:bg-[#128C7E] rounded-xl font-bold gap-3 text-white shadow-lg shadow-emerald-500/20"
+                onClick={handleWhatsApp}
+                disabled={!transaction.contactInfo?.phone || isGenerating}
+              >
+                <MessageSquare size={18} />
+                WhatsApp
+                {!transaction.contactInfo?.phone && <span className="text-[8px] opacity-60">(No #)</span>}
+              </Button>
+              <Button 
+                className="h-12 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold gap-3 text-white shadow-lg shadow-blue-500/20"
+                onClick={handleEmail}
+                disabled={!transaction.contactInfo?.email || isGenerating}
+              >
+                <Mail size={18} />
+                Email
+                {!transaction.contactInfo?.email && <span className="text-[8px] opacity-60">(No Mail)</span>}
+              </Button>
+            </div>
           </div>
           
-          <p className="text-[10px] text-center text-slate-400 font-medium">
-            Negotiation helps preserve business credit and trust during tight cash flow periods.
+          <p className="text-[9px] text-center text-slate-400 font-medium">
+            Negotiation helps preserve business trust and credit score during tight cash flow periods.
           </p>
         </CardContent>
       </Card>
