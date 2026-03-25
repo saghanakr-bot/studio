@@ -8,6 +8,8 @@ export type Transaction = {
   category?: string;
   subCategory?: string;
   status: 'cleared' | 'pending';
+  priority?: 'high' | 'medium' | 'low';
+  flexibility?: 'flexible' | 'fixed' | 'friendly';
 };
 
 export type PaymentReminder = {

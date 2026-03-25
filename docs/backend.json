@@ -29,7 +29,9 @@
         "type": { "type": "string", "enum": ["debit", "credit"] },
         "category": { "type": "string" },
         "subCategory": { "type": "string" },
-        "status": { "type": "string", "enum": ["cleared", "pending"] }
+        "status": { "type": "string", "enum": ["cleared", "pending"] },
+        "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+        "flexibility": { "type": "string", "enum": ["flexible", "fixed", "friendly"] }
       },
       "required": ["accountId", "date", "description", "amount", "type", "status"]
     }
