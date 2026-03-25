@@ -2,9 +2,6 @@
 
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { BusinessHealthScore } from "@/components/dashboard/business-health-score";
-import { RecentTransactions } from "@/components/dashboard/recent-transactions";
-import { PaymentRemindersList } from "@/components/dashboard/payment-reminders-list";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { NewFinancialEntryModal } from "@/components/dashboard/new-financial-entry-modal";
@@ -15,7 +12,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Cash Flow Dashboard</h1>
-          <p className="text-muted-foreground">Monitor your business liquidity and upcoming commitments.</p>
+          <p className="text-muted-foreground">Monitor your business liquidity and health score in real-time.</p>
         </div>
         <div className="flex items-center gap-2">
           <NewFinancialEntryModal 
@@ -33,35 +30,14 @@ export default function DashboardPage() {
         <BusinessHealthScore />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-1">
-        <Card className="border-none shadow-sm">
-          <CardHeader>
-            <CardTitle>Upcoming Payments</CardTitle>
-            <CardDescription>
-              Obligations due in the next 14 days.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PaymentRemindersList limit={5} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-1">
-        <Card className="border-none shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>
-                Summary of your most recent activity.
-              </CardDescription>
-            </div>
-            <Button variant="link" className="text-primary font-semibold">View all activity</Button>
-          </CardHeader>
-          <CardContent>
-            <RecentTransactions />
-          </CardContent>
-        </Card>
+      <div className="mt-8 p-12 border-2 border-dashed rounded-3xl flex flex-col items-center justify-center text-center bg-slate-50/50">
+        <div className="p-4 bg-white rounded-full shadow-sm mb-4">
+          <PlusCircle className="h-8 w-8 text-primary/40" />
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Your Activity Hub</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mt-2">
+          As you add transactions and sync statements, detailed insights and projections will automatically appear here.
+        </p>
       </div>
     </div>
   );

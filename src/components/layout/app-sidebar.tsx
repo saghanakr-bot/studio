@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -7,7 +6,6 @@ import {
   TrendingUp, 
   PieChart, 
   Wallet,
-  Settings,
   RefreshCw,
   Loader2
 } from "lucide-react";
