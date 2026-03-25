@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview An AI agent for categorizing bank statement transactions.
+ * @fileOverview An AI agent for categorizing bank statement transactions and extracting statement summaries.
  *
- * - categorizeTransactions - A function that handles the AI-powered categorization of bank transactions.
+ * - categorizeTransactions - A function that handles the AI-powered categorization and summary extraction.
  * - AICategorizationInput - The input type for the categorizeTransactions function.
  * - AICategorizationOutput - The return type for the categorizeTransactions function.
  */
@@ -20,6 +20,7 @@ const TransactionInputSchema = z.object({
 
 const AICategorizationInputSchema = z.object({
   transactions: z.array(TransactionInputSchema).describe('A list of bank statement transactions to categorize.'),
+  rawText: z.string().optional().describe('Optional raw text from the statement to help extract summary info like balances.'),
 });
 export type AICategorizationInput = z.infer<typeof AICategorizationInputSchema>;
 
@@ -35,6 +36,12 @@ const CategorizedTransactionOutputSchema = z.object({
 
 const AICategorizationOutputSchema = z.object({
   categorizedTransactions: z.array(CategorizedTransactionOutputSchema).describe('A list of bank statement transactions with added categories.'),
+  summary: z.object({
+    openingBalance: z.number().describe('The starting balance found on the statement header.'),
+    closingBalance: z.number().describe('The ending balance found on the statement footer.'),
+    statementPeriod: z.string().optional().describe('The date range of the statement.'),
+    currency: z.string().default('INR').describe('The currency detected in the statement.'),
+  }).describe('Financial summary extracted from the statement.'),
 });
 export type AICategorizationOutput = z.infer<typeof AICategorizationOutputSchema>;
 
@@ -46,25 +53,31 @@ const categorizeTransactionsPrompt = ai.definePrompt({
   name: 'categorizeTransactionsPrompt',
   input: { schema: AICategorizationInputSchema },
   output: { schema: AICategorizationOutputSchema },
-  prompt: `You are an expert financial assistant specialized in categorizing business transactions.
-You will be provided with a list of raw bank statement transactions. Your task is to categorize each transaction into an appropriate business spending or income category.
+  prompt: `You are an expert financial assistant specialized in analyzing business bank statements.
+You will be provided with a list of raw bank statement transactions and potentially some raw text from the statement header/footer.
 
-Common categories for businesses include, but are not limited to:
-- **Income**: Sales Revenue, Service Fees, Loan Disbursement, Interest Income, Capital Contribution
-- **Operating Expenses**: Rent, Utilities, Salaries & Wages, Office Supplies, Software Subscriptions, Marketing, Advertising, Travel, Business Meals, Professional Services (Legal, Accounting), Insurance, Repairs & Maintenance, Shipping, Fuel, Bank Fees
-- **Asset Purchases**: Equipment, Vehicles, Real Estate
+Your tasks:
+1. Categorize each transaction into an appropriate business spending or income category.
+2. Extract the statement's Opening Balance and Closing Balance.
+3. Identify the statement period if possible.
+
+Common categories for businesses include:
+- **Income**: Sales Revenue, Service Fees, Loan Disbursement, Interest Income
+- **Operating Expenses**: Rent, Utilities, Salaries & Wages, Office Supplies, Software Subscriptions, Marketing, Advertising, Travel, Business Meals
+- **Asset Purchases**: Equipment, Vehicles
 - **Debt Payments**: Loan Principal, Interest Expense
 - **Owner's Equity**: Owner's Draw
 - **Taxes**: Payroll Tax, Income Tax
 
-Analyze the 'description', 'amount', and 'type' fields for each transaction to determine the most fitting primary 'category'.
-If a more specific 'subCategory' can be inferred, include it.
-If a transaction description is too generic, try to infer based on typical business expenses and the amount.
-
-Here are the transactions to categorize:
+Transactions to categorize:
 {{{JSON.stringify transactions}}}
 
-Please return the categorized transactions in a JSON object with a single key 'categorizedTransactions' which is an array of objects, matching the structure of CategorizedTransactionOutputSchema. Each object in the array should include all original fields plus the 'category' and optionally 'subCategory' fields.
+{{#if rawText}}
+Raw Statement Text for Balance Extraction:
+{{{rawText}}}
+{{/if}}
+
+Please return a JSON object matching the structure of AICategorizationOutputSchema.
 `,
 });
 
