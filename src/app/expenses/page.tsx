@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,16 +21,22 @@ import {
   ArrowRight,
   ArrowUpRight,
   ArrowDownLeft,
-  Activity
+  Activity,
+  User,
+  Phone,
+  Mail,
+  Building,
+  Handshake
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, query, where, doc, setDoc, deleteDoc, orderBy, limit, collectionGroup } from "firebase/firestore";
+import { collection, query, where, doc, setDoc, deleteDoc, orderBy, limit, collectionGroup, getDocs } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { format, parseISO, isValid } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function ExpenseTrackerPage() {
   const db = useFirestore();
@@ -48,6 +54,7 @@ export default function ExpenseTrackerPage() {
   const [newItemType, setNewItemType] = useState<"debit" | "credit">("debit");
   const [isAdding, setIsAdding] = useState(false);
   const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [accountNames, setAccountNames] = useState<Record<string, string>>({});
 
   const handleDateChange = (newDate: string) => {
     setSelectedDate(newDate);
@@ -55,6 +62,16 @@ export default function ExpenseTrackerPage() {
     params.set("date", newDate);
     router.push(`/expenses?${params.toString()}`);
   };
+
+  // Fetch all account names to provide context for collectionGroup items
+  useEffect(() => {
+    if (!db) return;
+    getDocs(collection(db, "accounts")).then(snapshot => {
+      const mapping: Record<string, string> = {};
+      snapshot.forEach(doc => mapping[doc.id] = doc.data().name);
+      setAccountNames(mapping);
+    });
+  }, [db]);
 
   const accountsQuery = useMemo(() => (db ? query(collection(db, "accounts"), orderBy("lastUpdated", "desc"), limit(1)) : null), [db]);
   const { data: accounts, loading: accountsLoading } = useCollection(accountsQuery);
@@ -140,14 +157,14 @@ export default function ExpenseTrackerPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8 pb-12 animate-in fade-in duration-500">
+    <div className="max-w-5xl mx-auto flex flex-col gap-8 pb-12 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-3">
             <Receipt className="h-8 w-8" />
             Daily Activity
           </h1>
-          <p className="text-muted-foreground">Historical view of all inflows and outflows for a chosen date.</p>
+          <p className="text-muted-foreground">Detailed historical view of inflows and outflows.</p>
         </div>
         <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border">
           <CalendarIcon size={16} className="text-muted-foreground ml-2" />
@@ -161,12 +178,12 @@ export default function ExpenseTrackerPage() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-8 space-y-6">
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-4 bg-slate-50/50 border-b">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Activity size={18} className="text-primary" />
-                Activity Log: {format(parseISO(selectedDate), "MMMM dd, yyyy")}
+                Detailed Activity Log: {format(parseISO(selectedDate), "MMMM dd, yyyy")}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
@@ -179,45 +196,69 @@ export default function ExpenseTrackerPage() {
                   <div className="bg-slate-100 p-4 rounded-full">
                     <Receipt size={32} className="text-slate-400" />
                   </div>
-                  <p className="text-sm font-bold uppercase tracking-widest italic">Quiet day. No records found.</p>
+                  <p className="text-sm font-bold uppercase tracking-widest italic">No activity for this date.</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {dayActivity?.map((item: any) => (
-                    <div key={item.id} className="flex items-center gap-4 group hover:bg-slate-50 p-4 rounded-xl border border-transparent hover:border-slate-100 transition-all">
-                      <div className={cn(
-                        "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
-                        item.type === 'credit' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-600 border-slate-100"
-                      )}>
-                        {item.type === 'credit' ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
-                      </div>
-                      <div className="flex-1 space-y-0.5 min-w-0">
-                        <p className="text-sm font-bold text-slate-900 truncate">{item.description}</p>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[8px] h-3.5 px-1 py-0 border-slate-200 text-slate-500 uppercase font-black tracking-tighter">
-                            {item.category || "General"}
-                          </Badge>
-                          {item.status === 'pending' && (
-                            <Badge variant="outline" className="text-[8px] h-3.5 px-1 py-0 border-amber-200 bg-amber-50 text-amber-700 uppercase font-black tracking-tighter">
-                              Pending
+                    <div key={item.id} className="flex flex-col gap-3 group hover:bg-slate-50 p-4 rounded-2xl border border-slate-100 transition-all relative">
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
+                          item.type === 'credit' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-white text-slate-600 border-slate-100"
+                        )}>
+                          {item.type === 'credit' ? <ArrowUpRight size={24} /> : <ArrowDownLeft size={24} />}
+                        </div>
+                        <div className="flex-1 space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-black text-slate-900 truncate">{item.description}</p>
+                            <Badge variant="secondary" className="text-[8px] h-4 px-1.5 font-bold bg-slate-100 text-slate-500 uppercase">
+                              {item.category || "General"}
                             </Badge>
+                            {item.status === 'pending' && (
+                              <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-amber-200 bg-amber-50 text-amber-700 font-bold uppercase">
+                                Pending
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-4 text-[10px] font-medium text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Building size={10} className="text-slate-400" />
+                              {accountNames[item.accountId] || "Account " + item.accountId.slice(-4)}
+                            </span>
+                            {item.relationshipType && (
+                              <span className="flex items-center gap-1">
+                                <Handshake size={10} className="text-slate-400" />
+                                {item.relationshipType} Relations
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              {item.contactInfo?.email && <Mail size={10} className="text-primary" />}
+                              {item.contactInfo?.phone && <Phone size={10} className="text-emerald-500" />}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className={cn(
+                            "text-lg font-black",
+                            item.type === 'credit' ? "text-emerald-600" : "text-slate-900"
+                          )}>
+                            {item.type === 'credit' ? "+" : "-"}₹{Math.abs(item.amount).toLocaleString()}
+                          </div>
+                          {item.dueDate && item.dueDate !== item.date && (
+                            <p className="text-[9px] font-bold text-rose-500 uppercase mt-0.5">Due: {format(parseISO(item.dueDate), "MMM dd")}</p>
                           )}
                         </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeTransaction(item)}
+                          className="h-8 w-8 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all absolute top-2 right-2"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
                       </div>
-                      <div className={cn(
-                        "text-sm font-black",
-                        item.type === 'credit' ? "text-emerald-600" : "text-slate-900"
-                      )}>
-                        {item.type === 'credit' ? "+" : "-"}₹{Math.abs(item.amount).toLocaleString()}
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => removeTransaction(item)}
-                        className="h-8 w-8 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
                     </div>
                   ))}
                 </div>
@@ -271,28 +312,30 @@ export default function ExpenseTrackerPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-4 space-y-6">
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="p-6 bg-slate-50 border-b">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Daily Performance</p>
-              <div className="grid grid-cols-2 gap-8 items-end">
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-emerald-600">Inflow</p>
-                  <p className="text-2xl font-black text-slate-900">₹{totals.inflow.toLocaleString()}</p>
+              <div className="space-y-4">
+                <div className="flex justify-between items-end">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Total Inflow</p>
+                    <p className="text-xl font-black text-slate-900">₹{totals.inflow.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Total Outflow</p>
+                    <p className="text-xl font-black text-slate-900">₹{totals.outflow.toLocaleString()}</p>
+                  </div>
                 </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-xs font-bold text-rose-600">Outflow</p>
-                  <p className="text-2xl font-black text-slate-900">₹{totals.outflow.toLocaleString()}</p>
+                <div className="pt-4 border-t flex justify-between items-center">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Net Daily Flow</p>
+                  <p className={cn(
+                    "text-sm font-black",
+                    totals.inflow - totals.outflow >= 0 ? "text-emerald-600" : "text-rose-600"
+                  )}>
+                    {totals.inflow - totals.outflow >= 0 ? "+" : "-"}₹{Math.abs(totals.inflow - totals.outflow).toLocaleString()}
+                  </p>
                 </div>
-              </div>
-              <div className="mt-6 pt-4 border-t flex justify-between items-center">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Net Cash Flow</p>
-                <p className={cn(
-                  "text-sm font-black",
-                  totals.inflow - totals.outflow >= 0 ? "text-emerald-600" : "text-rose-600"
-                )}>
-                  {totals.inflow - totals.outflow >= 0 ? "+" : "-"}₹{Math.abs(totals.inflow - totals.outflow).toLocaleString()}
-                </p>
               </div>
             </div>
             
@@ -301,7 +344,7 @@ export default function ExpenseTrackerPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-slate-500 flex items-center gap-2">
                     <Wallet size={14} className="text-primary" />
-                    Sustainable Outflow Limit
+                    Sustainable Limit
                   </p>
                   <p className="text-xs font-black text-slate-900">₹{Math.floor(safeDailyLimit).toLocaleString()}</p>
                 </div>
@@ -319,12 +362,12 @@ export default function ExpenseTrackerPage() {
                   )}
                   <div className="space-y-1">
                     <p className="text-xs font-black uppercase tracking-widest">
-                      {totals.outflow <= safeDailyLimit ? "Sustainable" : "Liquidity Strain"}
+                      {totals.outflow <= safeDailyLimit ? "Sustainable" : "Liquidity Warning"}
                     </p>
-                    <p className="text-[11px] font-medium leading-relaxed opacity-80">
+                    <p className="text-[10px] font-medium leading-relaxed opacity-80">
                       {totals.outflow <= safeDailyLimit 
-                        ? "Your total expenditure for this date was within the recommended survival limit."
-                        : "Outflow on this date exceeded your calculated daily sustainability limit."}
+                        ? "Spending on this date was within your recommended daily safety margin."
+                        : "Outflow on this date exceeded your calculated sustainability threshold."}
                     </p>
                   </div>
                 </div>
@@ -332,15 +375,18 @@ export default function ExpenseTrackerPage() {
 
               <div className="pt-4 space-y-3 border-t">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                  <Info size={12} /> Insights
+                  <Info size={12} /> Insight Hub
                 </h3>
                 <div className="grid gap-2">
-                  <div className="p-3 bg-slate-50 rounded-lg text-[11px] font-medium text-slate-600 flex items-center gap-2">
-                    <Activity size={14} className="text-primary" />
-                    Total Transactions: {dayActivity?.length || 0}
+                  <div className="p-3 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-600 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity size={14} className="text-primary" />
+                      Total Items
+                    </div>
+                    <span>{dayActivity?.length || 0}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="w-full text-[10px] font-bold h-8 text-primary" onClick={() => router.push('/history')}>
-                    View All Settled History <ArrowRight size={10} className="ml-1" />
+                  <Button variant="ghost" size="sm" className="w-full text-[10px] font-bold h-8 text-primary group" onClick={() => router.push('/history')}>
+                    View Global Settled History <ArrowRight size={10} className="ml-1 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </div>
               </div>
