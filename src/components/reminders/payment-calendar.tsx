@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
   format, 
@@ -26,6 +26,7 @@ import { Transaction } from "@/lib/types";
 export function PaymentCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const db = useFirestore();
+  const router = useRouter();
 
   const transactionsQuery = useMemo(() => {
     if (!db) return null;
@@ -47,12 +48,17 @@ export function PaymentCalendar() {
     return transactions?.filter(tx => tx.date && isSameDay(new Date(tx.date), day)) || [];
   };
 
+  const handleDateClick = (day: Date) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    router.push(`/expenses?date=${dateStr}`);
+  };
+
   return (
     <Card className="border-none shadow-sm overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-8">
         <div>
           <CardTitle className="text-2xl font-bold">Payment Calendar</CardTitle>
-          <CardDescription>Track upcoming bills and expected incomes.</CardDescription>
+          <CardDescription>Click a date to track detailed daily expenses.</CardDescription>
         </div>
         <div className="flex items-center gap-4 border rounded-lg p-1">
           <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8">
@@ -62,7 +68,7 @@ export function PaymentCalendar() {
             {format(currentMonth, "MMMM yyyy")}
           </span>
           <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8">
-            <ChevronRight className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4 rotate-180" />
           </Button>
         </div>
       </CardHeader>
@@ -76,26 +82,31 @@ export function PaymentCalendar() {
           {days.map((day, i) => {
             const dayTransactions = getDayTransactions(day);
             const isSelectedMonth = isSameMonth(day, currentMonth);
+            const hasData = dayTransactions.length > 0;
             
             return (
               <div 
                 key={day.toString()} 
+                onClick={() => handleDateClick(day)}
                 className={cn(
-                  "min-h-[120px] p-2 border-r border-b transition-colors",
+                  "min-h-[120px] p-2 border-r border-b transition-all cursor-pointer group hover:bg-slate-50 relative",
                   !isSelectedMonth ? "bg-muted/10 opacity-30" : "bg-background",
                   isToday(day) && "bg-blue-50/30"
                 )}
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className={cn(
-                    "text-sm font-bold h-6 w-6 flex items-center justify-center rounded-full",
-                    isToday(day) ? "bg-blue-600 text-white" : "text-foreground"
+                    "text-sm font-bold h-6 w-6 flex items-center justify-center rounded-full transition-colors",
+                    isToday(day) ? "bg-blue-600 text-white" : "text-foreground group-hover:text-primary"
                   )}>
                     {format(day, "d")}
                   </span>
+                  {hasData && (
+                    <ArrowRight className="h-3 w-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
                 </div>
                 <div className="flex flex-col gap-1 overflow-hidden">
-                  {dayTransactions.map((tx) => (
+                  {dayTransactions.slice(0, 3).map((tx) => (
                     <div 
                       key={tx.id} 
                       className={cn(
@@ -106,12 +117,13 @@ export function PaymentCalendar() {
                       )}
                     >
                       <span className="truncate">₹{Math.abs(tx.amount).toLocaleString()}</span>
-                      <div className={cn(
-                        "w-1 h-1 rounded-full shrink-0",
-                        tx.type === 'credit' ? "bg-emerald-500" : "bg-rose-500"
-                      )} />
                     </div>
                   ))}
+                  {dayTransactions.length > 3 && (
+                    <span className="text-[8px] font-bold text-muted-foreground pl-1">
+                      +{dayTransactions.length - 3} more
+                    </span>
+                  )}
                 </div>
               </div>
             );
