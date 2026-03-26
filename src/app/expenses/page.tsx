@@ -24,7 +24,8 @@ import {
   Mail,
   Phone,
   Info,
-  Database
+  Database,
+  ExternalLink
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, where, doc, setDoc, deleteDoc, orderBy, limit, collectionGroup, getDocs } from "firebase/firestore";
@@ -48,7 +49,6 @@ function ExpenseTrackerContent() {
   const [isAdding, setIsAdding] = useState(false);
   const [accountNames, setAccountNames] = useState<Record<string, string>>({});
 
-  // Initialize date safely after mount to avoid hydration mismatch
   useEffect(() => {
     const dateParam = searchParams.get("date");
     const initialDate = dateParam && isValid(parseISO(dateParam)) 
@@ -64,7 +64,6 @@ function ExpenseTrackerContent() {
     router.push(`/expenses?${params.toString()}`);
   };
 
-  // Fetch all account names to provide context for collectionGroup items
   useEffect(() => {
     if (!db) return;
     getDocs(collection(db, "accounts")).then(snapshot => {
@@ -170,6 +169,8 @@ function ExpenseTrackerContent() {
     );
   }
 
+  const isIndexError = activityError?.message?.includes("index") || (activityError as any)?.code === "failed-precondition";
+
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-8 pb-12 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -208,11 +209,27 @@ function ExpenseTrackerContent() {
               ) : activityError ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-6 bg-rose-50 rounded-2xl border border-rose-100">
                   <Database className="h-8 w-8 text-rose-500 mb-3 opacity-40" />
-                  <p className="text-sm font-black text-rose-800 uppercase tracking-widest">Index Required</p>
-                  <p className="text-[10px] text-rose-600 mt-2 leading-relaxed max-w-sm">
-                    Firestore requires a <strong>Composite Index</strong> to query transactions by date. 
-                    Please open your browser console and click the link provided by Firebase to create it.
+                  <p className="text-sm font-black text-rose-800 uppercase tracking-widest">
+                    {isIndexError ? "Database Index Required" : "Connection Error"}
                   </p>
+                  <p className="text-[11px] text-rose-600 mt-2 leading-relaxed max-w-sm font-medium">
+                    {isIndexError 
+                      ? "Firestore requires a Composite Index for collectionGroup queries by date. Please open your browser console (F12) and click the provided link to create it." 
+                      : "Failed to retrieve transactions. Please ensure you are online and have proper database access."}
+                  </p>
+                  {isIndexError && (
+                    <div className="mt-4 p-3 bg-white/50 rounded-lg border border-rose-200 text-left">
+                      <p className="text-[10px] font-bold text-rose-700 flex items-center gap-2 mb-1">
+                        <Info size={12} /> How to fix:
+                      </p>
+                      <ol className="text-[10px] text-rose-600 space-y-1 list-decimal ml-4">
+                        <li>Press <strong>F12</strong> or <strong>Ctrl+Shift+I</strong> to open Developer Tools.</li>
+                        <li>Go to the <strong>Console</strong> tab.</li>
+                        <li>Click the <strong>blue link</strong> in the red error message.</li>
+                        <li>Click <strong>"Create Index"</strong> in the Firebase Console.</li>
+                      </ol>
+                    </div>
+                  )}
                 </div>
               ) : dayActivity?.length === 0 ? (
                 <div className="text-center py-12 flex flex-col items-center gap-3 opacity-40">

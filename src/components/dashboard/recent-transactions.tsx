@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useFirestore, useCollection } from "@/firebase";
 import { collectionGroup, query, orderBy, limit, doc, runTransaction } from "firebase/firestore";
 import { useMemo, useState } from "react";
-import { Loader2, Inbox, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, Inbox, AlertCircle, CheckCircle, Info, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -21,8 +21,6 @@ export function RecentTransactions() {
   const transactionsQuery = useMemo(() => {
     if (!db) return null;
     try {
-      // NOTE: This query requires a Composite Index for collectionGroup "transactions" 
-      // sorted by "date" descending. Check the browser console for the direct setup link.
       return query(
         collectionGroup(db, "transactions"),
         orderBy("date", "desc"),
@@ -100,6 +98,8 @@ export function RecentTransactions() {
     });
   };
 
+  const isIndexError = error?.message?.includes("index") || (error as any)?.code === "failed-precondition";
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -110,14 +110,28 @@ export function RecentTransactions() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-4 bg-amber-50 rounded-xl border border-amber-100">
-        <AlertCircle className="h-8 w-8 mb-3 text-amber-500" />
-        <p className="text-sm font-bold text-slate-700">Database Index Required</p>
-        <p className="text-xs mt-1 max-w-[320px] leading-relaxed">
-          Firestore requires a <strong>Composite Index</strong> for this view.
-          <br /><br />
-          <strong>Fix:</strong> Open your browser's developer console (F12) and click the provided link to create it automatically.
+      <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground px-4 bg-amber-50 rounded-xl border border-amber-100">
+        <div className="bg-amber-100 p-2.5 rounded-full mb-3 text-amber-600">
+          <Database size={24} />
+        </div>
+        <p className="text-sm font-black text-slate-800 uppercase tracking-widest">
+          {isIndexError ? "Database Index Required" : "Access Error"}
         </p>
+        <p className="text-[10px] mt-2 max-w-[320px] leading-relaxed font-medium">
+          {isIndexError 
+            ? "Firestore requires a Composite Index for cross-account transaction sorting. Check the browser console (F12) for the auto-setup link." 
+            : "We encountered an issue connecting to your database records."}
+        </p>
+        {isIndexError && (
+          <div className="mt-4 p-3 bg-white/60 rounded-lg text-left w-full border border-amber-200">
+            <p className="text-[9px] font-black text-amber-800 uppercase flex items-center gap-1 mb-1">
+              <Info size={10} /> To fix this:
+            </p>
+            <p className="text-[9px] text-amber-700 leading-normal">
+              Open your browser console (<strong>F12</strong>), find the red Firebase error, and click the <strong>blue URL</strong> to pre-configure your index in the Firebase Console.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
