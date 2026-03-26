@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
 import { collectionGroup, query, where, orderBy, collection, doc, runTransaction } from "firebase/firestore";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NegotiationCard } from "./negotiation-card";
@@ -33,6 +33,11 @@ export function SmartPrioritization() {
   const { toast } = useToast();
   const [activeNegotiation, setActiveNegotiation] = useState<Transaction | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [today, setToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setToday(startOfDay(new Date()));
+  }, []);
 
   // 1. Get current balance from all accounts
   const accountsQuery = useMemo(() => {
@@ -56,10 +61,9 @@ export function SmartPrioritization() {
 
   // 3. Logic for prioritization and feasibility
   const prioritizedItems = useMemo(() => {
-    if (!pendingItems) return [];
+    if (!pendingItems || !today) return [];
 
     let tempBalance = currentBalance;
-    const today = startOfDay(new Date());
     
     return pendingItems.map((item) => {
       const dueDate = new Date(item.dueDate || item.date);
@@ -69,45 +73,33 @@ export function SmartPrioritization() {
       const isIncome = item.type === 'credit';
 
       if (isIncome) {
-        // For income, priority is about following up on overdue payments
-        if (diffDays < 0) priorityScore += 80; // Overdue income needs attention
+        if (diffDays < 0) priorityScore += 80;
         else if (diffDays <= 3) priorityScore += 40;
-        
-        // Income always adds to tempBalance for subsequent bill checks
         tempBalance += Math.abs(item.amount);
       } else {
-        // For bills (debits)
-        // A. Penalty Risk
         const highRiskCategories = ['Electricity', 'Rent', 'Payroll', 'Utilities', 'Taxes'];
         if (highRiskCategories.includes(item.category || '')) priorityScore += 50;
         
-        // B. Relationship Flexibility
         if (item.relationshipType === 'Strict') priorityScore += 40;
         else if (item.relationshipType === 'Moderate') priorityScore += 20;
         else if (item.relationshipType === 'Friendly') priorityScore -= 20;
 
-        // C. Due Date Urgency
-        if (diffDays < 0) priorityScore += 100; // Overdue is critical
-        else if (diffDays === 0) priorityScore += 80; // Due today
-        else if (diffDays <= 3) priorityScore += 60; // Due very soon
+        if (diffDays < 0) priorityScore += 100;
+        else if (diffDays === 0) priorityScore += 80;
+        else if (diffDays <= 3) priorityScore += 60;
       }
 
       const isFeasible = isIncome || tempBalance >= Math.abs(item.amount);
       
-      // D. Suggested Action Logic
       let suggestedAction: 'Pay Now' | 'Delay' | 'Partial Payment' | 'Negotiate' | 'Mark Received' | 'Follow Up' = 'Pay Now';
       
       if (isIncome) {
         suggestedAction = diffDays < 0 ? 'Follow Up' : 'Mark Received';
       } else {
         if (!isFeasible) {
-          if (item.relationshipType === 'Friendly') {
-            suggestedAction = 'Partial Payment';
-          } else if (item.relationshipType === 'Flexible' || item.relationshipType === 'Moderate') {
-            suggestedAction = 'Negotiate';
-          } else {
-            suggestedAction = 'Delay';
-          }
+          if (item.relationshipType === 'Friendly') suggestedAction = 'Partial Payment';
+          else if (item.relationshipType === 'Flexible' || item.relationshipType === 'Moderate') suggestedAction = 'Negotiate';
+          else suggestedAction = 'Delay';
         }
       }
 
@@ -124,7 +116,7 @@ export function SmartPrioritization() {
         isIncome
       };
     }).sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [pendingItems, currentBalance]);
+  }, [pendingItems, currentBalance, today]);
 
   const handleClear = async (item: any) => {
     if (!db || processingId || !item.accountId) return;
@@ -180,7 +172,7 @@ export function SmartPrioritization() {
     }
   };
 
-  if (loading) return (
+  if (loading || !today) return (
     <div className="grid grid-cols-1 gap-4">
       {[1, 2, 3].map(i => (
         <div key={i} className="h-32 bg-slate-50 animate-pulse rounded-2xl border" />
@@ -314,4 +306,3 @@ export function SmartPrioritization() {
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,14 @@ import { collectionGroup, query } from "firebase/firestore";
 import { Transaction } from "@/lib/types";
 
 export function PaymentCalendar() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
   const db = useFirestore();
   const router = useRouter();
+
+  // Set initial month on client to avoid hydration mismatch
+  useEffect(() => {
+    setCurrentMonth(new Date());
+  }, []);
 
   const transactionsQuery = useMemo(() => {
     if (!db) return null;
@@ -36,13 +42,14 @@ export function PaymentCalendar() {
   const { data: transactions } = useCollection<Transaction>(transactionsQuery);
 
   const days = useMemo(() => {
+    if (!currentMonth) return [];
     const start = startOfWeek(startOfMonth(currentMonth));
     const end = endOfWeek(endOfMonth(currentMonth));
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
-  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const nextMonth = () => currentMonth && setCurrentMonth(addMonths(currentMonth, 1));
+  const prevMonth = () => currentMonth && setCurrentMonth(subMonths(currentMonth, 1));
 
   const getDayTransactions = (day: Date) => {
     return transactions?.filter(tx => tx.date && isSameDay(new Date(tx.date), day)) || [];
@@ -52,6 +59,8 @@ export function PaymentCalendar() {
     const dateStr = format(day, "yyyy-MM-dd");
     router.push(`/expenses?date=${dateStr}`);
   };
+
+  if (!currentMonth) return <div className="min-h-[400px] bg-slate-50/50 animate-pulse rounded-xl" />;
 
   return (
     <Card className="border-none shadow-sm overflow-hidden">

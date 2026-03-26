@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,23 +39,27 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export default function ExpenseTrackerPage() {
+function ExpenseTrackerContent() {
   const db = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const dateParam = searchParams.get("date");
-  const initialDate = dateParam && isValid(parseISO(dateParam)) 
-    ? dateParam 
-    : format(new Date(), "yyyy-MM-dd");
-
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemAmount, setNewItemAmount] = useState("");
   const [newItemType, setNewItemType] = useState<"debit" | "credit">("debit");
   const [isAdding, setIsAdding] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [accountNames, setAccountNames] = useState<Record<string, string>>({});
+
+  // Initialize date safely after mount to avoid hydration mismatch
+  useEffect(() => {
+    const dateParam = searchParams.get("date");
+    const initialDate = dateParam && isValid(parseISO(dateParam)) 
+      ? dateParam 
+      : format(new Date(), "yyyy-MM-dd");
+    setSelectedDate(initialDate);
+  }, [searchParams]);
 
   const handleDateChange = (newDate: string) => {
     setSelectedDate(newDate);
@@ -81,7 +86,7 @@ export default function ExpenseTrackerPage() {
   const safeDailyLimit = useMemo(() => totalLiquidity / 30, [totalLiquidity]);
 
   const dailyTransactionsQuery = useMemo(() => {
-    if (!db) return null;
+    if (!db || !selectedDate) return null;
     return query(
       collectionGroup(db, "transactions"),
       where("date", "==", selectedDate)
@@ -100,7 +105,7 @@ export default function ExpenseTrackerPage() {
   }, [dayActivity]);
 
   const addTransaction = async () => {
-    if (!newItemDesc || !newItemAmount || !db || !activeAccount) return;
+    if (!newItemDesc || !newItemAmount || !db || !activeAccount || !selectedDate) return;
     
     setIsAdding(true);
     const amountVal = parseFloat(newItemAmount) || 0;
@@ -147,11 +152,11 @@ export default function ExpenseTrackerPage() {
     });
   };
 
-  if (accountsLoading) {
+  if (accountsLoading || !selectedDate) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Waking up database...</p>
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Loading activities...</p>
       </div>
     );
   }
@@ -225,7 +230,7 @@ export default function ExpenseTrackerPage() {
                           <div className="flex items-center gap-4 text-[10px] font-medium text-slate-500">
                             <span className="flex items-center gap-1">
                               <Building size={10} className="text-slate-400" />
-                              {accountNames[item.accountId] || "Account " + item.accountId.slice(-4)}
+                              {item.accountId ? (accountNames[item.accountId] || "Account " + item.accountId.slice(-4)) : "Unknown Account"}
                             </span>
                             {item.relationshipType && (
                               <span className="flex items-center gap-1">
@@ -395,5 +400,18 @@ export default function ExpenseTrackerPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ExpenseTrackerPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Loading Activity Tracker...</p>
+      </div>
+    }>
+      <ExpenseTrackerContent />
+    </Suspense>
   );
 }

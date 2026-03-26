@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useFirestore, useCollection } from "@/firebase";
@@ -12,6 +13,11 @@ import { subDays, isAfter, startOfDay } from "date-fns";
 
 export function BusinessHealthScore() {
   const db = useFirestore();
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   // 1. Fetch Data
   const accountsQuery = useMemo(() => (db ? query(collection(db, "accounts")) : null), [db]);
@@ -21,12 +27,12 @@ export function BusinessHealthScore() {
   const { data: transactions, loading: txLoading } = useCollection(transactionsQuery);
 
   const healthData = useMemo(() => {
-    if (!accounts || !transactions) return null;
+    if (!accounts || !transactions || !now) return null;
 
     // A. Inputs
     const currentBalance = accounts.reduce((sum, acc: any) => sum + (acc.closingBalance || 0), 0);
     
-    const thirtyDaysAgo = subDays(new Date(), 30);
+    const thirtyDaysAgo = subDays(now, 30);
     const totalMonthlyExpenses = transactions
       .filter((tx: any) => tx.type === 'debit' && tx.status === 'cleared' && isAfter(new Date(tx.date), thirtyDaysAgo))
       .reduce((sum, tx: any) => sum + Math.abs(tx.amount), 0);
@@ -34,7 +40,7 @@ export function BusinessHealthScore() {
     const pendingDebits = transactions.filter((tx: any) => tx.type === 'debit' && tx.status === 'pending');
     const totalUpcomingObligations = pendingDebits.reduce((sum, tx: any) => sum + Math.abs(tx.amount), 0);
     
-    const today = startOfDay(new Date());
+    const today = startOfDay(now);
     const overduePaymentsCount = pendingDebits.filter((tx: any) => {
       const dueDate = tx.dueDate ? new Date(tx.dueDate) : new Date(tx.date);
       return dueDate < today;
@@ -114,9 +120,9 @@ export function BusinessHealthScore() {
       overdueCount: overduePaymentsCount,
       hasData: accounts.length > 0
     };
-  }, [accounts, transactions]);
+  }, [accounts, transactions, now]);
 
-  if (accountsLoading || txLoading) {
+  if (accountsLoading || txLoading || !now) {
     return (
       <Card className="border-none shadow-sm h-[200px] flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
