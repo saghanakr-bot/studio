@@ -8,8 +8,7 @@ import {
   CalendarDays,
   Zap,
   History,
-  Receipt,
-  Database
+  Receipt
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -41,7 +40,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { seedDemoData } from "@/lib/db-seed";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -57,7 +55,6 @@ export function AppSidebar() {
   const db = useFirestore();
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   const handleResetData = async () => {
     if (!db) return;
@@ -88,29 +85,6 @@ export function AppSidebar() {
       });
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  const handleSeedData = async () => {
-    if (!db) return;
-    setIsSeeding(true);
-    try {
-      await seedDemoData(db);
-      toast({
-        title: "Demo Data Seeded",
-        description: "30 days of transactions and bills have been added.",
-      });
-      router.push("/");
-      router.refresh();
-    } catch (error) {
-      console.error("Seed Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Seeding Failed",
-        description: "Could not add demo data.",
-      });
-    } finally {
-      setIsSeeding(false);
     }
   };
 
@@ -149,17 +123,6 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-white/10 space-y-2">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              onClick={handleSeedData}
-              disabled={isSeeding}
-              className="h-10 w-full justify-start gap-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-            >
-              {isSeeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Database className="w-5 h-5" />}
-              <span className="group-data-[collapsible=icon]:hidden">Seed Demo Data</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
           <SidebarMenuItem>
             <AlertDialog>
               <AlertDialogTrigger asChild>
