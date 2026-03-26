@@ -12,7 +12,8 @@ import {
   Loader2,
   Copy,
   ChevronRight,
-  User
+  User,
+  RefreshCw
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,11 +37,10 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    if (activeMode !== 'ai') return;
     setIsGenerating(true);
     try {
       const result = await generateNegotiationMessage({
-        supplierName: transaction.description.split(":")[0],
+        supplierName: transaction.description.split(":")[0] || "Supplier",
         delayDuration: delayDays,
         relationshipType: transaction.relationshipType || "Moderate",
         language,
@@ -48,10 +48,11 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
       });
       setAiMessage(result.message);
     } catch (error) {
+      console.error("AI Generation Error:", error);
       toast({
         variant: "destructive",
         title: "AI Generation failed",
-        description: "Could not create message. Please check your API key status."
+        description: "Could not create message. Please check your API key or connection."
       });
     } finally {
       setIsGenerating(false);
@@ -59,33 +60,33 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
   };
 
   useEffect(() => {
-    if (activeMode === 'ai' && !aiMessage) {
+    if (activeMode === 'ai' && !aiMessage && !isGenerating) {
       handleGenerate();
     }
   }, [activeMode]);
 
   useEffect(() => {
-    if (activeMode === 'ai') {
+    if (activeMode === 'ai' && aiMessage) {
       handleGenerate();
     }
   }, [language, delayDays]);
 
   const currentMessage = activeMode === 'ai' ? aiMessage : customMessage;
 
-  const handleWhatsApp = () => {
+  const getWhatsAppUrl = () => {
     const phone = transaction.contactInfo?.phone || "";
-    const encoded = encodeURIComponent(currentMessage);
-    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
+    const cleanPhone = phone.replace(/\D/g, '');
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(currentMessage)}`;
   };
 
-  const handleEmail = () => {
+  const getEmailUrl = () => {
     const email = transaction.contactInfo?.email || "";
-    const subject = encodeURIComponent("Payment Update: " + transaction.description.split(":")[0]);
-    const body = encodeURIComponent(currentMessage);
-    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    const subject = `Payment Update: ${transaction.description.split(":")[0] || "Transaction"}`;
+    return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(currentMessage)}`;
   };
 
   const copyToClipboard = () => {
+    if (!currentMessage) return;
     navigator.clipboard.writeText(currentMessage);
     toast({ title: "Copied", description: "Message copied to clipboard." });
   };
@@ -111,7 +112,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
             <CardTitle className="text-2xl font-bold text-slate-900">Negotiation Hub</CardTitle>
           </div>
           <CardDescription className="text-slate-500">
-            Communicate professionally with <strong>{transaction.description.split(":")[0]}</strong>.
+            Communicate professionally with <strong>{transaction.description.split(":")[0] || "Recipient"}</strong>.
           </CardDescription>
         </CardHeader>
 
@@ -129,7 +130,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
             <TabsContent value="ai" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Request Extension</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Extension</label>
                   <Select value={delayDays} onValueChange={setDelayDays}>
                     <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
                       <SelectValue />
@@ -143,7 +144,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Language</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Language</label>
                   <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
                     <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
                       <div className="flex items-center gap-2">
@@ -172,15 +173,27 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
                     </div>
                   ) : (
                     <>
-                      <div className="whitespace-pre-wrap">{aiMessage}</div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute bottom-2 right-2 h-8 w-8 text-slate-400 hover:text-primary transition-colors"
-                        onClick={copyToClipboard}
-                      >
-                        <Copy size={14} />
-                      </Button>
+                      <div className="whitespace-pre-wrap">{aiMessage || "Click regenerate to create a message..."}</div>
+                      <div className="absolute bottom-2 right-2 flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-400 hover:text-primary"
+                          onClick={handleGenerate}
+                          title="Regenerate"
+                        >
+                          <RefreshCw size={14} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-400 hover:text-primary"
+                          onClick={copyToClipboard}
+                          title="Copy"
+                        >
+                          <Copy size={14} />
+                        </Button>
+                      </div>
                     </>
                   )}
                 </div>
@@ -198,9 +211,6 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
                     onChange={(e) => setCustomMessage(e.target.value)}
                   />
                 </div>
-                <p className="text-[9px] text-slate-400 italic font-medium px-2">
-                  * Manual messages give you full control over the tone and specific details.
-                </p>
               </div>
             </TabsContent>
           </Tabs>
@@ -211,27 +221,45 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
             </p>
             <div className="grid grid-cols-2 gap-4">
               <Button 
+                asChild={!!transaction.contactInfo?.phone && !!currentMessage && !isGenerating}
                 className="h-12 bg-[#25D366] hover:bg-[#128C7E] rounded-xl font-bold gap-3 text-white shadow-lg shadow-emerald-500/20"
-                onClick={handleWhatsApp}
                 disabled={!transaction.contactInfo?.phone || isGenerating || !currentMessage}
               >
-                <MessageSquare size={18} />
-                WhatsApp
-                {!transaction.contactInfo?.phone && <span className="text-[8px] opacity-60">(No #)</span>}
+                {transaction.contactInfo?.phone && currentMessage && !isGenerating ? (
+                  <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-full h-full gap-3">
+                    <MessageSquare size={18} />
+                    WhatsApp
+                  </a>
+                ) : (
+                  <>
+                    <MessageSquare size={18} />
+                    WhatsApp
+                    {!transaction.contactInfo?.phone && <span className="text-[8px] opacity-60">(No #)</span>}
+                  </>
+                )}
               </Button>
               <Button 
+                asChild={!!transaction.contactInfo?.email && !!currentMessage && !isGenerating}
                 className="h-12 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold gap-3 text-white shadow-lg shadow-blue-500/20"
-                onClick={handleEmail}
                 disabled={!transaction.contactInfo?.email || isGenerating || !currentMessage}
               >
-                <Mail size={18} />
-                Email
-                {!transaction.contactInfo?.email && <span className="text-[8px] opacity-60">(No Mail)</span>}
+                {transaction.contactInfo?.email && currentMessage && !isGenerating ? (
+                  <a href={getEmailUrl()} className="flex items-center justify-center w-full h-full gap-3">
+                    <Mail size={18} />
+                    Email
+                  </a>
+                ) : (
+                  <>
+                    <Mail size={18} />
+                    Email
+                    {!transaction.contactInfo?.email && <span className="text-[8px] opacity-60">(No Mail)</span>}
+                  </>
+                )}
               </Button>
             </div>
           </div>
           
-          <p className="text-[9px] text-center text-slate-400 font-medium">
+          <p className="text-[9px] text-center text-slate-400 font-medium italic">
             Proactive communication preserves business trust and credit integrity.
           </p>
         </CardContent>
