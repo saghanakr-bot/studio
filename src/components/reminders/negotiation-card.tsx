@@ -12,9 +12,12 @@ import {
   Globe, 
   Loader2,
   Copy,
-  ChevronRight
+  ChevronRight,
+  User
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { Transaction } from "@/lib/types";
 import { generateNegotiationMessage } from "@/ai/flows/generate-negotiation-flow";
 import { useToast } from "@/hooks/use-toast";
@@ -25,13 +28,16 @@ interface NegotiationCardProps {
 }
 
 export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) {
+  const [activeMode, setActiveMode] = useState<"ai" | "custom">("ai");
   const [language, setLanguage] = useState<"English" | "Tamil" | "Hindi">("English");
   const [delayDays, setDelayDays] = useState("3 days");
-  const [message, setMessage] = useState("");
+  const [aiMessage, setAiMessage] = useState("");
+  const [customMessage, setCustomMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
+    if (activeMode !== 'ai') return;
     setIsGenerating(true);
     try {
       const result = await generateNegotiationMessage({
@@ -41,12 +47,12 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
         language,
         amount: Math.abs(transaction.amount)
       });
-      setMessage(result.message);
+      setAiMessage(result.message);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "AI Generation failed",
-        description: "Could not create message. Please check connection and try again."
+        description: "Could not create message. Please check your API key status."
       });
     } finally {
       setIsGenerating(false);
@@ -54,25 +60,35 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
   };
 
   useEffect(() => {
-    handleGenerate();
+    if (activeMode === 'ai' && !aiMessage) {
+      handleGenerate();
+    }
+  }, [activeMode]);
+
+  useEffect(() => {
+    if (activeMode === 'ai') {
+      handleGenerate();
+    }
   }, [language, delayDays]);
+
+  const currentMessage = activeMode === 'ai' ? aiMessage : customMessage;
 
   const handleWhatsApp = () => {
     const phone = transaction.contactInfo?.phone || "";
-    const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
+    const encoded = encodeURIComponent(currentMessage);
+    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
   };
 
   const handleEmail = () => {
     const email = transaction.contactInfo?.email || "";
-    const subject = encodeURIComponent("Payment Request");
-    const body = encodeURIComponent(message);
+    const subject = encodeURIComponent("Payment Update: " + transaction.description.split(":")[0]);
+    const body = encodeURIComponent(currentMessage);
     window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(message);
-    toast({ title: "Copied", description: "Negotiation message copied to clipboard." });
+    navigator.clipboard.writeText(currentMessage);
+    toast({ title: "Copied", description: "Message copied to clipboard." });
   };
 
   return (
@@ -96,71 +112,101 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
             <CardTitle className="text-2xl font-bold text-slate-900">Negotiation Hub</CardTitle>
           </div>
           <CardDescription className="text-slate-500">
-            Professional AI-assisted communication for <strong>{transaction.description.split(":")[0]}</strong>.
+            Communicate professionally with <strong>{transaction.description.split(":")[0]}</strong>.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="px-8 pb-8 flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Request Extension</label>
-              <Select value={delayDays} onValueChange={setDelayDays}>
-                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="3 days">3 Days</SelectItem>
-                  <SelectItem value="1 week">1 Week</SelectItem>
-                  <SelectItem value="10 days">10 Days</SelectItem>
-                  <SelectItem value="Next Month">Next Month</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Language</label>
-              <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
-                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Globe size={14} className="text-primary" />
-                    <SelectValue />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="English">English</SelectItem>
-                  <SelectItem value="Tamil">Tamil</SelectItem>
-                  <SelectItem value="Hindi">Hindi</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-slate-100 rounded-xl">
+              <TabsTrigger value="ai" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
+                <Sparkles size={14} className="text-primary" /> AI Assistant
+              </TabsTrigger>
+              <TabsTrigger value="custom" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
+                <User size={14} className="text-slate-600" /> Custom
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="relative group">
-            <div className="absolute -top-2.5 left-4 px-2 bg-white text-[9px] font-bold text-primary uppercase tracking-widest z-10 border border-primary/20 rounded">
-              AI Generated Message
-            </div>
-            <div className="w-full min-h-[160px] p-6 rounded-2xl bg-slate-50 border border-slate-100 text-sm leading-relaxed text-slate-700 italic relative overflow-hidden">
-              {isGenerating ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 rounded-2xl gap-3">
-                  <Loader2 className="animate-spin text-primary h-6 w-6" />
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Crafting Message...</p>
+            <TabsContent value="ai" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Request Extension</label>
+                  <Select value={delayDays} onValueChange={setDelayDays}>
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3 days">3 Days</SelectItem>
+                      <SelectItem value="1 week">1 Week</SelectItem>
+                      <SelectItem value="10 days">10 Days</SelectItem>
+                      <SelectItem value="Next Month">Next Month</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
-                <>
-                  <div className="whitespace-pre-wrap">{message}</div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute bottom-2 right-2 h-8 w-8 text-slate-400 hover:text-primary transition-colors"
-                    onClick={copyToClipboard}
-                  >
-                    <Copy size={14} />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Language</label>
+                  <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Globe size={14} className="text-primary" />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English">English</SelectItem>
+                      <SelectItem value="Tamil">Tamil</SelectItem>
+                      <SelectItem value="Hindi">Hindi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-          <div className="flex flex-col gap-3 mt-2">
+              <div className="relative group">
+                <div className="absolute -top-2.5 left-4 px-2 bg-white text-[9px] font-bold text-primary uppercase tracking-widest z-10 border border-primary/20 rounded">
+                  AI Generated Message
+                </div>
+                <div className="w-full min-h-[160px] p-6 rounded-2xl bg-slate-50 border border-slate-100 text-sm leading-relaxed text-slate-700 italic relative overflow-hidden">
+                  {isGenerating ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 rounded-2xl gap-3">
+                      <Loader2 className="animate-spin text-primary h-6 w-6" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Crafting Message...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="whitespace-pre-wrap">{aiMessage}</div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute bottom-2 right-2 h-8 w-8 text-slate-400 hover:text-primary transition-colors"
+                        onClick={copyToClipboard}
+                      >
+                        <Copy size={14} />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="custom" className="mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Message</label>
+                  <Textarea 
+                    placeholder="Type your manual negotiation message here..."
+                    className="min-h-[200px] rounded-2xl bg-slate-50 border-slate-100 resize-none focus-visible:ring-primary shadow-inner"
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 italic font-medium px-2">
+                  * Manual messages give you full control over the tone and specific details.
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex flex-col gap-3">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
               Send Via <ChevronRight size={10} />
             </p>
@@ -168,7 +214,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
               <Button 
                 className="h-12 bg-[#25D366] hover:bg-[#128C7E] rounded-xl font-bold gap-3 text-white shadow-lg shadow-emerald-500/20"
                 onClick={handleWhatsApp}
-                disabled={!transaction.contactInfo?.phone || isGenerating}
+                disabled={!transaction.contactInfo?.phone || isGenerating || !currentMessage}
               >
                 <MessageSquare size={18} />
                 WhatsApp
@@ -177,7 +223,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
               <Button 
                 className="h-12 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold gap-3 text-white shadow-lg shadow-blue-500/20"
                 onClick={handleEmail}
-                disabled={!transaction.contactInfo?.email || isGenerating}
+                disabled={!transaction.contactInfo?.email || isGenerating || !currentMessage}
               >
                 <Mail size={18} />
                 Email
@@ -187,7 +233,7 @@ export function NegotiationCard({ transaction, onClose }: NegotiationCardProps) 
           </div>
           
           <p className="text-[9px] text-center text-slate-400 font-medium">
-            Negotiation helps preserve business trust and credit score during tight cash flow periods.
+            Proactive communication preserves business trust and credit integrity.
           </p>
         </CardContent>
       </Card>
