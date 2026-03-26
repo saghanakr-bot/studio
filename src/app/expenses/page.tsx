@@ -25,7 +25,8 @@ import {
   Phone,
   Info,
   Database,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, where, doc, setDoc, deleteDoc, orderBy, limit, collectionGroup, getDocs } from "firebase/firestore";
@@ -160,6 +161,16 @@ function ExpenseTrackerContent() {
     });
   };
 
+  const handleWhatsApp = (phone: string, description: string) => {
+    const encoded = encodeURIComponent(`Hi, regarding the transaction: ${description}`);
+    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
+  };
+
+  const handleEmail = (email: string, description: string) => {
+    const subject = encodeURIComponent("Inquiry: " + description);
+    window.location.href = `mailto:${email}?subject=${subject}`;
+  };
+
   if (accountsLoading || !selectedDate) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -273,9 +284,25 @@ function ExpenseTrackerContent() {
                                 {item.relationshipType} Relations
                               </span>
                             )}
-                            <div className="flex items-center gap-1">
-                              {item.contactInfo?.email && <Mail size={10} className="text-primary" />}
-                              {item.contactInfo?.phone && <Phone size={10} className="text-emerald-500" />}
+                            <div className="flex items-center gap-2">
+                              {item.contactInfo?.email && (
+                                <button 
+                                  onClick={() => handleEmail(item.contactInfo.email, item.description)}
+                                  className="p-1 hover:bg-primary/10 rounded transition-colors group/mail"
+                                  title="Send Email"
+                                >
+                                  <Mail size={12} className="text-primary group-hover/mail:scale-110 transition-transform" />
+                                </button>
+                              )}
+                              {item.contactInfo?.phone && (
+                                <button 
+                                  onClick={() => handleWhatsApp(item.contactInfo.phone, item.description)}
+                                  className="p-1 hover:bg-emerald-100 rounded transition-colors group/wa"
+                                  title="Chat on WhatsApp"
+                                >
+                                  <MessageSquare size={12} className="text-emerald-500 group-hover/wa:scale-110 transition-transform" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>

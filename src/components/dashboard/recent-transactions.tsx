@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useFirestore, useCollection } from "@/firebase";
 import { collectionGroup, query, orderBy, limit, doc, runTransaction } from "firebase/firestore";
 import { useMemo, useState } from "react";
-import { Loader2, Inbox, AlertCircle, CheckCircle, Info, Database } from "lucide-react";
+import { Loader2, Inbox, AlertCircle, CheckCircle, Info, Database, Mail, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -98,6 +98,16 @@ export function RecentTransactions() {
     });
   };
 
+  const handleWhatsApp = (phone: string, description: string) => {
+    const encoded = encodeURIComponent(`Hi, regarding the transaction: ${description}`);
+    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
+  };
+
+  const handleEmail = (email: string, description: string) => {
+    const subject = encodeURIComponent("Inquiry: " + description);
+    window.location.href = `mailto:${email}?subject=${subject}`;
+  };
+
   const isIndexError = error?.message?.includes("index") || (error as any)?.code === "failed-precondition";
 
   if (loading) {
@@ -178,6 +188,18 @@ export function RecentTransactions() {
                   {transaction.category}
                 </Badge>
               )}
+              <div className="flex items-center gap-1 ml-1">
+                {transaction.contactInfo?.email && (
+                  <button onClick={() => handleEmail(transaction.contactInfo.email, transaction.description)} className="p-0.5 hover:bg-slate-100 rounded text-primary">
+                    <Mail size={10} />
+                  </button>
+                )}
+                {transaction.contactInfo?.phone && (
+                  <button onClick={() => handleWhatsApp(transaction.contactInfo.phone, transaction.description)} className="p-0.5 hover:bg-slate-100 rounded text-emerald-600">
+                    <MessageSquare size={10} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           
