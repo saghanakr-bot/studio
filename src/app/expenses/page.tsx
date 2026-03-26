@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -25,7 +24,6 @@ import {
   Phone,
   Info,
   Database,
-  ExternalLink,
   MessageSquare
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
@@ -228,19 +226,6 @@ function ExpenseTrackerContent() {
                       ? "Firestore requires a Composite Index for collectionGroup queries by date. Please open your browser console (F12) and click the provided link to create it." 
                       : "Failed to retrieve transactions. Please ensure you are online and have proper database access."}
                   </p>
-                  {isIndexError && (
-                    <div className="mt-4 p-3 bg-white/50 rounded-lg border border-rose-200 text-left">
-                      <p className="text-[10px] font-bold text-rose-700 flex items-center gap-2 mb-1">
-                        <Info size={12} /> How to fix:
-                      </p>
-                      <ol className="text-[10px] text-rose-600 space-y-1 list-decimal ml-4">
-                        <li>Press <strong>F12</strong> or <strong>Ctrl+Shift+I</strong> to open Developer Tools.</li>
-                        <li>Go to the <strong>Console</strong> tab.</li>
-                        <li>Click the <strong>blue link</strong> in the red error message.</li>
-                        <li>Click <strong>"Create Index"</strong> in the Firebase Console.</li>
-                      </ol>
-                    </div>
-                  )}
                 </div>
               ) : dayActivity?.length === 0 ? (
                 <div className="text-center py-12 flex flex-col items-center gap-3 opacity-40">
@@ -266,11 +251,6 @@ function ExpenseTrackerContent() {
                             <Badge variant="secondary" className="text-[8px] h-4 px-1.5 font-bold bg-slate-100 text-slate-500 uppercase">
                               {item.category || "General"}
                             </Badge>
-                            {item.status === 'pending' && (
-                              <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-amber-200 bg-amber-50 text-amber-700 font-bold uppercase">
-                                Pending
-                              </Badge>
-                            )}
                           </div>
                           
                           <div className="flex items-center gap-4 text-[10px] font-medium text-slate-500">
@@ -286,21 +266,13 @@ function ExpenseTrackerContent() {
                             )}
                             <div className="flex items-center gap-2">
                               {item.contactInfo?.email && (
-                                <button 
-                                  onClick={() => handleEmail(item.contactInfo.email, item.description)}
-                                  className="p-1 hover:bg-primary/10 rounded transition-colors group/mail"
-                                  title="Send Email"
-                                >
-                                  <Mail size={12} className="text-primary group-hover/mail:scale-110 transition-transform" />
+                                <button onClick={() => handleEmail(item.contactInfo.email, item.description)} className="p-1 hover:bg-primary/10 rounded transition-colors text-primary">
+                                  <Mail size={12} />
                                 </button>
                               )}
                               {item.contactInfo?.phone && (
-                                <button 
-                                  onClick={() => handleWhatsApp(item.contactInfo.phone, item.description)}
-                                  className="p-1 hover:bg-emerald-100 rounded transition-colors group/wa"
-                                  title="Chat on WhatsApp"
-                                >
-                                  <MessageSquare size={12} className="text-emerald-500 group-hover/wa:scale-110 transition-transform" />
+                                <button onClick={() => handleWhatsApp(item.contactInfo.phone, item.description)} className="p-1 hover:bg-emerald-100 rounded transition-colors text-emerald-500">
+                                  <MessageSquare size={12} />
                                 </button>
                               )}
                             </div>
@@ -313,9 +285,6 @@ function ExpenseTrackerContent() {
                           )}>
                             {item.type === 'credit' ? "+" : "-"}₹{Math.abs(item.amount).toLocaleString()}
                           </div>
-                          {item.dueDate && item.dueDate !== item.date && (
-                            <p className="text-[9px] font-bold text-rose-500 uppercase mt-0.5">Due: {format(parseISO(item.dueDate), "MMM dd")}</p>
-                          )}
                         </div>
                         <Button 
                           variant="ghost" 
@@ -334,51 +303,16 @@ function ExpenseTrackerContent() {
               <div className="pt-6 border-t mt-4">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Quick Add Entry</h3>
                 <div className="flex gap-2 mb-4 p-1 bg-slate-50 rounded-lg w-fit">
-                  <Button 
-                    variant={newItemType === 'debit' ? 'default' : 'ghost'} 
-                    size="sm" 
-                    className="h-7 text-[9px] font-bold uppercase tracking-widest px-3"
-                    onClick={() => setNewItemType('debit')}
-                  >
-                    Expense
-                  </Button>
-                  <Button 
-                    variant={newItemType === 'credit' ? 'default' : 'ghost'} 
-                    size="sm" 
-                    className={cn(
-                      "h-7 text-[9px] font-bold uppercase tracking-widest px-3",
-                      newItemType === 'credit' && "bg-emerald-600 hover:bg-emerald-700"
-                    )}
-                    onClick={() => setNewItemType('credit')}
-                  >
-                    Income
-                  </Button>
+                  <Button variant={newItemType === 'debit' ? 'default' : 'ghost'} size="sm" className="h-7 text-[9px] font-bold uppercase" onClick={() => setNewItemType('debit')}>Expense</Button>
+                  <Button variant={newItemType === 'credit' ? 'default' : 'ghost'} size="sm" className={cn("h-7 text-[9px] font-bold uppercase", newItemType === 'credit' && "bg-emerald-600")} onClick={() => setNewItemType('credit')}>Income</Button>
                 </div>
                 <div className="flex gap-3">
-                  <Input 
-                    placeholder="Brief description..." 
-                    value={newItemDesc} 
-                    onChange={(e) => setNewItemDesc(e.target.value)}
-                    className="h-10 text-sm shadow-inner bg-slate-50 border-none"
-                    disabled={!activeAccount}
-                  />
-                  <Input 
-                    type="number" 
-                    placeholder="₹ 0" 
-                    value={newItemAmount} 
-                    onChange={(e) => setNewItemAmount(e.target.value)}
-                    className="h-10 w-24 text-sm font-bold shadow-inner bg-slate-50 border-none text-center"
-                    disabled={!activeAccount}
-                  />
+                  <Input placeholder="Description..." value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="h-10 text-sm shadow-inner bg-slate-50" />
+                  <Input type="number" placeholder="₹ 0" value={newItemAmount} onChange={(e) => setNewItemAmount(e.target.value)} className="h-10 w-24 text-sm font-bold shadow-inner bg-slate-50" />
                   <Button onClick={addTransaction} size="icon" className="h-10 w-10 shrink-0" disabled={!newItemDesc || !newItemAmount || isAdding || !activeAccount}>
                     {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus size={18} />}
                   </Button>
                 </div>
-                {!activeAccount && (
-                  <p className="text-[10px] text-rose-500 font-bold mt-2 uppercase flex items-center gap-1">
-                    <AlertTriangle size={12} /> Sync a bank statement or add an account balance to start logging.
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -391,22 +325,13 @@ function ExpenseTrackerContent() {
               <div className="space-y-4">
                 <div className="flex justify-between items-end">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Total Inflow</p>
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase">Total Inflow</p>
                     <p className="text-xl font-black text-slate-900">₹{totals.inflow.toLocaleString()}</p>
                   </div>
                   <div className="space-y-1 text-right">
-                    <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Total Outflow</p>
+                    <p className="text-[10px] font-bold text-rose-600 uppercase">Total Outflow</p>
                     <p className="text-xl font-black text-slate-900">₹{totals.outflow.toLocaleString()}</p>
                   </div>
-                </div>
-                <div className="pt-4 border-t flex justify-between items-center">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Net Daily Flow</p>
-                  <p className={cn(
-                    "text-sm font-black",
-                    totals.inflow - totals.outflow >= 0 ? "text-emerald-600" : "text-rose-600"
-                  )}>
-                    {totals.inflow - totals.outflow >= 0 ? "+" : "-"}₹{Math.abs(totals.inflow - totals.outflow).toLocaleString()}
-                  </p>
                 </div>
               </div>
             </div>
@@ -423,43 +348,15 @@ function ExpenseTrackerContent() {
                 
                 <div className={cn(
                   "p-4 rounded-xl border flex items-start gap-3 transition-all",
-                  totals.outflow <= safeDailyLimit 
-                    ? "bg-emerald-50 border-emerald-100 text-emerald-800" 
-                    : "bg-rose-50 border-rose-100 text-rose-800"
+                  totals.outflow <= safeDailyLimit ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-rose-50 border-rose-100 text-rose-800"
                 )}>
-                  {totals.outflow <= safeDailyLimit ? (
-                    <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-                  ) : (
-                    <AlertTriangle size={18} className="text-rose-500 shrink-0" />
-                  )}
+                  {totals.outflow <= safeDailyLimit ? <CheckCircle2 size={18} className="text-emerald-500" /> : <AlertTriangle size={18} className="text-rose-500" />}
                   <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest">
-                      {totals.outflow <= safeDailyLimit ? "Sustainable" : "Liquidity Warning"}
-                    </p>
+                    <p className="text-xs font-black uppercase">{totals.outflow <= safeDailyLimit ? "Sustainable" : "Liquidity Warning"}</p>
                     <p className="text-[10px] font-medium leading-relaxed opacity-80">
-                      {totals.outflow <= safeDailyLimit 
-                        ? "Spending on this date was within your recommended daily safety margin."
-                        : "Outflow on this date exceeded your calculated sustainability threshold."}
+                      {totals.outflow <= safeDailyLimit ? "Spending is within your safety margin." : "Outflow exceeded your daily sustainability threshold."}
                     </p>
                   </div>
-                </div>
-              </div>
-
-              <div className="pt-4 space-y-3 border-t">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                  <Info size={12} /> Insight Hub
-                </h3>
-                <div className="grid gap-2">
-                  <div className="p-3 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-600 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Activity size={14} className="text-primary" />
-                      Total Items
-                    </div>
-                    <span>{dayActivity?.length || 0}</span>
-                  </div>
-                  <Button variant="ghost" size="sm" className="w-full text-[10px] font-bold h-8 text-primary group" onClick={() => router.push('/history')}>
-                    View Global Settled History <ArrowRight size={10} className="ml-1 group-hover:translate-x-1 transition-transform" />
-                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -472,12 +369,7 @@ function ExpenseTrackerContent() {
 
 export default function ExpenseTrackerPage() {
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Loading Activity Tracker...</p>
-      </div>
-    }>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin" /></div>}>
       <ExpenseTrackerContent />
     </Suspense>
   );
