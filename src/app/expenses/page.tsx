@@ -3,18 +3,14 @@
 
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { 
   Plus, 
   Trash2, 
   AlertTriangle, 
   CheckCircle2, 
-  TrendingDown, 
-  TrendingUp,
-  Info,
   Loader2,
   Wallet,
   Receipt,
@@ -23,11 +19,12 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Activity,
-  User,
-  Phone,
-  Mail,
   Building,
-  Handshake
+  Handshake,
+  Mail,
+  Phone,
+  Info,
+  Database
 } from "lucide-react";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, where, doc, setDoc, deleteDoc, orderBy, limit, collectionGroup, getDocs } from "firebase/firestore";
@@ -37,7 +34,6 @@ import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function ExpenseTrackerContent() {
   const db = useFirestore();
@@ -93,7 +89,7 @@ function ExpenseTrackerContent() {
     );
   }, [db, selectedDate]);
 
-  const { data: dayActivity, loading: activityLoading } = useCollection(dailyTransactionsQuery);
+  const { data: dayActivity, loading: activityLoading, error: activityError } = useCollection(dailyTransactionsQuery);
 
   const totals = useMemo(() => {
     return dayActivity?.reduce((acc, item: any) => {
@@ -105,7 +101,16 @@ function ExpenseTrackerContent() {
   }, [dayActivity]);
 
   const addTransaction = async () => {
-    if (!newItemDesc || !newItemAmount || !db || !activeAccount || !selectedDate) return;
+    if (!newItemDesc || !newItemAmount || !db || !activeAccount || !selectedDate) {
+      if (!activeAccount) {
+        toast({
+          variant: "destructive",
+          title: "Account Required",
+          description: "Please add a bank account first via the Dashboard.",
+        });
+      }
+      return;
+    }
     
     setIsAdding(true);
     const amountVal = parseFloat(newItemAmount) || 0;
@@ -124,21 +129,25 @@ function ExpenseTrackerContent() {
       createdAt: new Date().toISOString()
     };
 
-    setDoc(txRef, txData).catch(e => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: txRef.path,
-        operation: 'create',
-        requestResourceData: txData
-      }));
-    });
-    
-    setNewItemDesc("");
-    setNewItemAmount("");
-    setIsAdding(false);
-    toast({
-      title: "Log Entry Added",
-      description: `₹${amountVal} recorded for ${selectedDate}.`,
-    });
+    setDoc(txRef, txData)
+      .then(() => {
+        toast({
+          title: "Log Entry Added",
+          description: `₹${amountVal} recorded for ${selectedDate}.`,
+        });
+      })
+      .catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: txRef.path,
+          operation: 'create',
+          requestResourceData: txData
+        }));
+      })
+      .finally(() => {
+        setNewItemDesc("");
+        setNewItemAmount("");
+        setIsAdding(false);
+      });
   };
 
   const removeTransaction = async (item: any) => {
@@ -196,12 +205,21 @@ function ExpenseTrackerContent() {
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-slate-200" />
                 </div>
+              ) : activityError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-6 bg-rose-50 rounded-2xl border border-rose-100">
+                  <Database className="h-8 w-8 text-rose-500 mb-3 opacity-40" />
+                  <p className="text-sm font-black text-rose-800 uppercase tracking-widest">Index Required</p>
+                  <p className="text-[10px] text-rose-600 mt-2 leading-relaxed max-w-sm">
+                    Firestore requires a <strong>Composite Index</strong> to query transactions by date. 
+                    Please open your browser console and click the link provided by Firebase to create it.
+                  </p>
+                </div>
               ) : dayActivity?.length === 0 ? (
                 <div className="text-center py-12 flex flex-col items-center gap-3 opacity-40">
                   <div className="bg-slate-100 p-4 rounded-full">
                     <Receipt size={32} className="text-slate-400" />
                   </div>
-                  <p className="text-sm font-bold uppercase tracking-widest italic">No activity for this date.</p>
+                  <p className="text-sm font-bold uppercase tracking-widest italic">No activity found for this date.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -312,6 +330,11 @@ function ExpenseTrackerContent() {
                     {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus size={18} />}
                   </Button>
                 </div>
+                {!activeAccount && (
+                  <p className="text-[10px] text-rose-500 font-bold mt-2 uppercase flex items-center gap-1">
+                    <AlertTriangle size={12} /> Sync a bank statement or add an account balance to start logging.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
